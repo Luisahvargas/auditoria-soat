@@ -15,7 +15,7 @@
 #
 # Puede editar este archivo sin reprogramar. Cambie "version" cuando lo modifique.
 
-version: "1.0"
+version: "1.1"
 fecha_actualizacion: "2026-10-25"
 
 bloques:
@@ -107,7 +107,7 @@ campos:
     bloque: accidente
     tipo: texto
     patrones:
-      - 'direccion (?:del|de) (?:accidente|evento|ocurrencia)\s*[:\-]?\s*(?P<valor>[^\n]{3,80})'
+      - '(?:direccion|lugar) (?:del|de|de la) (?:accidente|evento|ocurrencia|siniestro)\s*[:\-]?\s*(?P<valor>[^\n]{3,80})'
 
   - id: accidente.municipio
     etiqueta: Municipio
@@ -143,7 +143,7 @@ campos:
     bloque: accidente
     tipo: codigo
     patrones:
-      - '(?:condicion|calidad) (?:de la victima|del accidentado|del lesionado)\s*[:\-]?\s*(?P<valor>conductor|peaton|ocupante|pasajero|ciclista|acompanante|motociclista)\b'
+      - '(?:condicion|calidad)(?: (?:de la victima|del accidentado|del lesionado|del paciente))?\s*[:\-]?\s*(?P<valor>conductor|peaton|ocupante|pasajero|ciclista|acompanante|motociclista|parrillero)\b'
 
   - id: accidente.placa
     etiqueta: Placa del vehículo
@@ -262,6 +262,14 @@ campos:
     multiple: true
     patrones:
       - 'motivo de (?:consulta|ingreso)\s*[:\-]?\s*(?P<valor>[^\n]{3,300})'
+
+  - id: clinico.enfermedad_actual
+    etiqueta: Enfermedad actual (relato en la atención)
+    bloque: clinico
+    tipo: texto
+    multiple: true
+    patrones:
+      - 'enfermedad actual\s*[:\-]?\s*(?P<valor>[^\n]{10,400})'
 
   - id: clinico.hallazgos
     etiqueta: Hallazgos

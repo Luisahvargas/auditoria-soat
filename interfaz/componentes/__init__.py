@@ -1,1 +1,0 @@
-"""Piezas de interfaz reutilizables."""

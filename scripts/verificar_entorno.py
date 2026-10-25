@@ -4,7 +4,6 @@ Uso:  .\\.venv\\Scripts\\python.exe scripts\\verificar_entorno.py
 """
 
 import importlib
-import shutil
 import sys
 from importlib import metadata
 from pathlib import Path
@@ -16,14 +15,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 DEPENDENCIAS = [
     ("streamlit", "streamlit"),
     ("pymupdf", "pymupdf"),
-    ("lxml", "lxml"),
-    ("pydantic", "pydantic"),
-    ("SQLAlchemy", "sqlalchemy"),
     ("python-dotenv", "dotenv"),
     ("PyYAML", "yaml"),
-    ("openpyxl", "openpyxl"),
-    ("reportlab", "reportlab"),
     ("pytest", "pytest"),
+    ("reportlab", "reportlab"),
 ]
 
 
@@ -44,23 +39,13 @@ def verificar() -> bool:
             print(f"[ERROR] {paquete}: {error}")
 
     try:
-        from auditoria.config import cargar_configuracion, preparar_carpetas
+        from auditoria.config import cargar_configuracion
+        from auditoria.documentos.ocr import estado_ocr
 
-        config = cargar_configuracion()
-        preparar_carpetas(config)
-        prueba = config.ruta_datos / ".prueba_escritura"
-        prueba.write_text("ok", encoding="utf-8")
-        prueba.unlink()
-        print(f"[OK] Carpeta de datos con permiso de escritura: {config.ruta_datos}")
-        print(f"[OK] Proveedor de IA: {config.proveedor_ia}")
+        print(f"[OPCIONAL] OCR: {estado_ocr(cargar_configuracion()).mensaje}")
     except Exception as error:  # noqa: BLE001
         todo_bien = False
-        print(f"[ERROR] Configuración o carpeta de datos: {error}")
-
-    # Herramientas opcionales: su ausencia no es un error.
-    for herramienta in ("tesseract", "ollama"):
-        ruta = shutil.which(herramienta)
-        print(f"[OPCIONAL] {herramienta}: {'instalado en ' + ruta if ruta else 'no instalado'}")
+        print(f"[ERROR] Configuración: {error}")
 
     print("\nResultado:", "entorno listo." if todo_bien else "hay problemas que corregir.")
     return todo_bien

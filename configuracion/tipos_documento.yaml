@@ -6,7 +6,7 @@
 # - "fuertes" suman 3 puntos (casi exclusivas del tipo); "apoyo" suman 1 punto.
 # - Puede editar este archivo sin reprogramar. Cambie "version" cuando lo modifique.
 
-version: "1.0"
+version: "1.1"
 fecha_actualizacion: "2026-10-25"
 
 # Puntos mínimos para proponer un tipo. Por debajo se propone "Otros".
@@ -20,6 +20,10 @@ tipos:
   - nombre: Factura
     fuertes: ["factura electronica", "factura de venta", cufe]
     apoyo: [factura, nit, subtotal, "valor total", "valor unitario", iva, cantidad, "resolucion de facturacion"]
+
+  - nombre: Hoja de admisión
+    fuertes: ["hoja de admision", "admision del paciente", "registro de admision", "hoja de ingreso"]
+    apoyo: [admision, acudiente, responsable, eps, regimen, "datos del paciente", "datos de ingreso"]
 
   - nombre: Historia clínica
     fuertes: ["historia clinica"]
@@ -58,12 +62,16 @@ tipos:
     apoyo: [placa, tornillo, tornillos, clavo, "lote", "referencia", proveedor, implante]
 
   - nombre: Fórmulas de medicamentos
-    fuertes: ["formula medica", "formulacion de medicamentos", "orden de medicamentos"]
+    fuertes: ["formula medica", "formulacion de medicamentos", "orden de medicamentos", "medicamentos ambulatorios", "formula ambulatoria"]
     apoyo: [medicamento, medicamentos, dosis, posologia, "via de administracion", tableta, ampolla, mg, frecuencia]
 
   - nombre: Póliza SOAT y documentos del vehículo
     fuertes: ["poliza soat", "seguro obligatorio", "licencia de transito", "tarjeta de propiedad"]
     apoyo: [poliza, soat, placa, vigencia, aseguradora, vehiculo, marca, modelo, chasis]
+
+  - nombre: Consulta RUNT
+    fuertes: [runt, "registro unico nacional de transito"]
+    apoyo: [consulta, "estado del vehiculo", "informacion del vehiculo", soat, vigencia, propietario]
 
   - nombre: Identificaciones
     fuertes: ["cedula de ciudadania", "tarjeta de identidad", "registro civil de nacimiento", "republica de colombia identificacion"]

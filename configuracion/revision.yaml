@@ -1,0 +1,54 @@
+# Parámetros de la revisión automática de la cuenta.
+# Se pueden editar sin reprogramar. Las palabras se comparan sin tildes y sin mayúsculas.
+
+version: "1.0"
+fecha_actualizacion: "2026-10-25"
+
+# Grupos de folios que se comparan entre sí (nombres de configuracion/tipos_documento.yaml).
+grupos:
+  furips: [FURIPS]
+  admision: [Hoja de admisión, Atención inicial de urgencias, Historia clínica]
+  factura: [Factura]
+  poliza: [Póliza SOAT y documentos del vehículo]
+  runt: [Consulta RUNT]
+  documentos_vehiculo: [Póliza SOAT y documentos del vehículo, Consulta RUNT, Identificaciones]
+  ordenes: [Órdenes médicas, Historia clínica, Atención inicial de urgencias, Hoja de admisión, Notas de evolución, Epicrisis]
+  informes: [Informes radiológicos, Laboratorio y ayudas diagnósticas]
+  quirurgico: [Descripción quirúrgica]
+  material: [Materiales de osteosíntesis]
+  evolucion: [Notas de evolución]
+  urgencias: [Atención inicial de urgencias]
+  con_firma_medica: [Informes radiológicos, Laboratorio y ayudas diagnósticas, Descripción quirúrgica, Epicrisis]
+
+# Exámenes radiológicos (para informe, interpretación y justificación).
+estudios_radiologicos:
+  radiografia: [radiografia, radiografias, rx]
+  tomografia: [tomografia, tac, escanografia]
+  resonancia: [resonancia, rmn]
+  ecografia: [ecografia, ecografico]
+
+# Otras ayudas diagnósticas (solo justificación).
+otras_ayudas:
+  hemograma: [hemograma, cuadro hematico]
+  electrocardiograma: [electrocardiograma, ekg, ecg]
+
+# Palabras que indican que un informe tiene interpretación.
+palabras_interpretacion: [hallazgos, conclusion, impresion diagnostica, opinion, se observa, no se observa, interpretacion]
+
+# Regiones anatómicas para revisar lateralidad (derecha / izquierda).
+regiones: [rodilla, tobillo, pie, mano, muneca, codo, hombro, cadera, femur, tibia, perone, humero, radio, cubito, clavicula, brazo, antebrazo, pierna, muslo, rotula, calcaneo, miembro inferior, miembro superior, hemitorax, ojo, oido, pierna]
+
+# Materiales de osteosíntesis.
+materiales: [placa, tornillo, clavo, arandela, alambre, grapa, injerto, fijador, protesis, endoprotesis, cerclaje, aguja]
+
+# Identificación del médico y de su firma o registro en los informes.
+palabras_medico: ['\bdra?\.? [a-z]{3,}', '\b(?:medico|radiologo|cirujano|anestesiologo|especialista|profesional)\b\s*(?:tratante)?\s*[:\-]\s*[a-z]{3,}']
+palabras_firma: ['\bfirma', 'registro medico', '\breg\.? ?med', '\br\.? ?m\.? ?[:#]? ?\d', 'tarjeta profesional', '\bt\.? ?p\.? ?[:#]? ?\d']
+
+# Orden de medicamentos ambulatorios y firma del paciente.
+palabras_orden_ambulatoria: [medicamentos ambulatorios, formula ambulatoria, tratamiento ambulatorio, orden ambulatoria, formula de egreso]
+palabras_firma_paciente: [firma del paciente, firma paciente, firma del usuario, firma usuario, firma de quien recibe, recibido por, firma del acudiente]
+
+# Cobro de urgencias y estancia.
+palabras_cobro_urgencia: [urgencia, urgencias]
+palabras_soporte_urgencia: [triage, triaje, atencion inicial de urgencias, ingreso a urgencias]
