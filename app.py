@@ -23,12 +23,15 @@ st.set_page_config(page_title="Auditoría SOAT", page_icon="🩺", layout="wide"
 pagina_inicio = st.Page(inicio.mostrar, title="Inicio", icon="🏠", url_path="inicio", default=True)
 st.session_state["pagina_inicio"] = pagina_inicio
 
+pagina_documentos = st.Page(vista_documentos.mostrar, title="Vista de documentos", icon="📄", url_path="documentos")
+st.session_state["pagina_documentos"] = pagina_documentos
+
 paginas = {
     "General": [pagina_inicio],
     "Documentos": [
         st.Page(carga.mostrar, title="Carga de documentos", icon="📤", url_path="carga"),
         st.Page(inventario.mostrar, title="Inventario de archivos", icon="🗂️", url_path="inventario"),
-        st.Page(vista_documentos.mostrar, title="Vista de documentos", icon="📄", url_path="documentos"),
+        pagina_documentos,
     ],
     "Auditoría": [
         st.Page(ficha.mostrar, title="Ficha de datos generales", icon="🧾", url_path="ficha"),

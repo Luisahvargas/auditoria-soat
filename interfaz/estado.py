@@ -44,6 +44,14 @@ def requerir_auditoria() -> tuple[dict, dict]:
     return usuario, auditoria
 
 
+def ir_a_pagina(documento_id: int, numero_pagina: int) -> None:
+    """Abre la Vista de documentos en la página indicada (página del archivo original)."""
+    st.session_state["ir_a_pagina"] = {"documento_id": documento_id, "pagina": numero_pagina}
+    destino = st.session_state.get("pagina_documentos")
+    if destino is not None:
+        st.switch_page(destino)
+
+
 def auditoria_finalizada() -> bool:
     auditoria = auditoria_activa()
     return bool(auditoria and auditoria["estado"] == catalogos.AUDITORIA_FINALIZADA)
