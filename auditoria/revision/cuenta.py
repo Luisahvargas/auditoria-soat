@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from auditoria.config import Configuracion
 from auditoria.documentos import clasificador, lector_pdf, ocr
 from auditoria.extraccion.extractor import cargar_definicion, extraer_de_texto, normalizar_valor
+from auditoria.revision import formularios
 from auditoria.texto import quitar_tildes
 
 # Un folio con menos caracteres visibles que esto se considera sin texto útil (escaneado).
@@ -85,6 +86,7 @@ def leer_cuenta(archivos: list[tuple[str, bytes]], config: Configuracion) -> Cue
         except lector_pdf.ErrorLecturaPDF as error:
             cuenta.errores_lectura.append(f"{nombre}: {error}")
             continue
+        tipo_anterior = None
         for pagina in paginas:
             texto, metodo = pagina.texto, "Texto PDF"
             if _contar_caracteres(texto) < MINIMO_CARACTERES_TEXTO:
@@ -96,17 +98,25 @@ def leer_cuenta(archivos: list[tuple[str, bytes]], config: Configuracion) -> Cue
                         reconocido = ""
                     if _contar_caracteres(reconocido) >= MINIMO_CARACTERES_TEXTO:
                         texto, metodo = reconocido, "OCR"
-            folio = Folio(nombre, pagina.numero, texto, clasificador.clasificar_texto(texto) if texto else None, metodo)
+            tipo = clasificador.clasificar_texto(texto, tipo_anterior) if texto else None
+            tipo_anterior = tipo or tipo_anterior
+            folio = Folio(nombre, pagina.numero, texto, tipo, metodo)
             cuenta.folios.append(folio)
-            for coincidencia in extraer_de_texto(texto, definicion):
-                tipo_campo = definicion.campo(coincidencia.campo_id).tipo
-                cuenta.datos.append(
-                    Dato(
-                        coincidencia.campo_id,
-                        coincidencia.valor,
-                        normalizar_valor(tipo_campo, coincidencia.valor),
-                        folio,
-                        coincidencia.evidencia,
-                    )
-                )
+            for campo, valor, evidencia in _datos_del_folio(folio, definicion):
+                cuenta.datos.append(Dato(campo, valor, normalizar_valor(definicion.campo(campo).tipo, valor), folio, evidencia))
     return cuenta
+
+
+def _datos_del_folio(folio: Folio, definicion) -> list[tuple[str, str, str]]:
+    """Datos de un folio: lector propio del formulario y/o patrones generales."""
+    if not folio.texto:
+        return []
+    lector = formularios.LECTORES.get(folio.tipo)
+    propios = lector(folio.texto) if lector else []
+    if propios and folio.tipo in ("FURIPS", "SIRAS"):
+        return propios  # Formularios oficiales: solo su lector (las etiquetas se repiten por sección)
+    generales = [(c.campo_id, c.valor, c.evidencia) for c in extraer_de_texto(folio.texto, definicion)]
+    if folio.tipo in formularios.SIN_DATOS_GENERALES_DEL_PACIENTE:
+        generales = [g for g in generales if not g[0].startswith("paciente.")]
+    ya = {(c, normalizar_valor(definicion.campo(c).tipo, v)) for c, v, _ in propios}
+    return propios + [g for g in generales if (g[0], normalizar_valor(definicion.campo(g[0]).tipo, g[1])) not in ya]

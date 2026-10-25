@@ -18,7 +18,7 @@ from auditoria.texto import fragmento, leer_fecha, normalizar, quitar_tildes, so
 RUTA_FICHA = RAIZ_PROYECTO / "configuracion" / "ficha.yaml"
 
 COMODINES = {
-    "{FECHA}": r"(?:\d{1,2}[/.\-]\d{1,2}[/.\-]\d{4}|\d{4}-\d{1,2}-\d{1,2}|\d{1,2} de [a-z]+ del? \d{4})",
+    "{FECHA}": r"(?:\d{1,2}[/.\-]\d{1,2}[/.\-]\d{4}|\d{4}-\d{1,2}-\d{1,2}|\d{1,2} de [a-z]+ del? \d{4}|\d{1,2}[/ -][a-z]{3,10}\.?[/ -]\d{4})",
     "{NUM_ID}": r"(?:\d{1,3}(?:[.,]\d{3}){1,4}|\d{5,12})",
 }
 CORTE_NOMBRE = re.compile(
@@ -37,6 +37,8 @@ class CampoFicha:
     revisar_si_falta: bool
     patrones: tuple[re.Pattern, ...]
     contexto_excluir: tuple[str, ...]
+    excluir_si_sigue: tuple[str, ...] = ()
+    excluir_si_precede: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -79,6 +81,8 @@ def cargar_definicion(ruta: Path = RUTA_FICHA) -> DefinicionFicha:
                 revisar_si_falta=bool(c.get("revisar_si_falta", False)),
                 patrones=tuple(patrones),
                 contexto_excluir=tuple(normalizar(p) for p in c.get("contexto_excluir", [])),
+                excluir_si_sigue=tuple(normalizar(p) for p in c.get("excluir_si_sigue", [])),
+                excluir_si_precede=tuple(normalizar(p) for p in c.get("excluir_si_precede", [])),
             )
         )
     return DefinicionFicha(version=str(datos.get("version", "")), bloques=dict(datos["bloques"]), campos=tuple(campos))
@@ -88,7 +92,11 @@ def limpiar_valor(campo: CampoFicha, valor: str) -> str:
     """Recorta ruido alrededor del valor capturado (sin cambiar su contenido)."""
     valor = valor.strip(" \t:-.;,")
     if campo.tipo in ("nombre", "texto"):
-        corte = (CORTE_NOMBRE if campo.tipo == "nombre" else re.compile(r"\s{3,}")).search(valor)
+        corte = (CORTE_NOMBRE if campo.tipo == "nombre" else re.compile(r"\s{3,}")).search(quitar_tildes(valor))
+        if campo.tipo == "nombre" and (
+            (corte and corte.start() == 0) or re.search(r"\b(?:apellido|nombre|licencia)", quitar_tildes(valor), re.IGNORECASE)
+        ):
+            return ""  # Lo capturado es otra etiqueta (p. ej. "Identificación", "APELLIDO(S)"), no un nombre
         if corte and corte.start() > 0:
             valor = valor[: corte.start()]
         if campo.tipo == "nombre":
@@ -131,6 +139,16 @@ def extraer_de_texto(texto: str, definicion: DefinicionFicha | None = None) -> l
                 desde = max(0, coincidencia.start() - 80, sin_tildes.rfind("\n", 0, coincidencia.start()) + 1)
                 antes = normalizar(sin_tildes[desde : coincidencia.start()])
                 if any(re.search(rf"\b{re.escape(palabra)}\b", antes) for palabra in campo.contexto_excluir):
+                    continue
+                # Lo que sigue al dato (p. ej. "Especialidad" indica el bloque de firma de un médico).
+                despues = normalizar(sin_tildes[fin : fin + 120])
+                if any(re.search(rf"\b{re.escape(palabra)}\b", despues) for palabra in campo.excluir_si_sigue):
+                    continue
+                # Las dos líneas anteriores (p. ej. "Cargo:" indica el bloque de firma del personal).
+                inicio_linea = sin_tildes.rfind("\n", 0, coincidencia.start())
+                previas = sin_tildes.rfind("\n", 0, max(sin_tildes.rfind("\n", 0, max(inicio_linea, 0)), 0))
+                lineas_previas = normalizar(sin_tildes[max(previas, 0) : max(inicio_linea, 0)])
+                if any(re.search(rf"\b{re.escape(palabra)}\b", lineas_previas) for palabra in campo.excluir_si_precede):
                     continue
                 original = texto[inicio:fin] if misma_longitud else coincidencia.group("valor")
                 valor = limpiar_valor(campo, original)

@@ -1,81 +1,112 @@
-# Tipos documentales y palabras clave para la clasificación PRELIMINAR de páginas.
+# Tipos documentales para clasificar cada folio.
 #
-# - La clasificación automática es solo una propuesta: el auditor siempre puede corregirla.
-# - Ningún tipo es obligatorio: que falte un tipo no se considera error por sí solo.
-# - Las palabras se comparan sin tildes y sin distinguir mayúsculas.
-# - "fuertes" suman 3 puntos (casi exclusivas del tipo); "apoyo" suman 1 punto.
-# - Puede editar este archivo sin reprogramar. Cambie "version" cuando lo modifique.
+# 1. "titulos": si una de estas frases aparece en las primeras 30 líneas del folio, ese es su
+#    tipo (gana el título que aparezca primero).
+# 2. Si el folio no tiene título, se asume que continúa el documento del folio anterior.
+# 3. Si es el primer folio y no tiene título, se usan las palabras clave:
+#    "fuertes" suman 3 puntos y "apoyo" 1 punto.
+# Las frases se comparan sin tildes y sin mayúsculas. Se puede editar sin reprogramar.
 
-version: "1.1"
+version: "1.2"
 fecha_actualizacion: "2026-10-25"
 
-# Puntos mínimos para proponer un tipo. Por debajo se propone "Otros".
 puntaje_minimo: 3
+lineas_titulo: 30
 
 tipos:
   - nombre: FURIPS
+    titulos: ["formulario unico de reclamacion", furips]
     fuertes: [furips, "formulario unico de reclamacion"]
-    apoyo: ["victima", "accidente de transito", "datos del vehiculo", "datos del accidente", "reclamacion", "propietario", "conductor"]
+    apoyo: [victima, "accidente de transito", propietario, conductor]
+
+  - nombre: SIRAS
+    titulos: ["sistema de informacion de reportes", "formulariosiras", "siras"]
+    fuertes: [siras]
+    apoyo: []
 
   - nombre: Factura
+    titulos: ["factura electronica de venta", "factura de venta"]
     fuertes: ["factura electronica", "factura de venta", cufe]
-    apoyo: [factura, nit, subtotal, "valor total", "valor unitario", iva, cantidad, "resolucion de facturacion"]
+    apoyo: [factura, subtotal, "valor total"]
 
   - nombre: Hoja de admisión
-    fuertes: ["hoja de admision", "admision del paciente", "registro de admision", "hoja de ingreso"]
-    apoyo: [admision, acudiente, responsable, eps, regimen, "datos del paciente", "datos de ingreso"]
+    titulos: ["hoja de admision"]
+    fuertes: ["hoja de admision"]
+    apoyo: []
 
   - nombre: Historia clínica
-    fuertes: ["historia clinica"]
-    apoyo: [anamnesis, antecedentes, "revision por sistemas", "examen fisico", "enfermedad actual", "motivo de consulta"]
+    titulos: ["ingreso medico", "historia clinica"]
+    fuertes: ["historia clinica", "ingreso medico"]
+    apoyo: [anamnesis, antecedentes, "examen fisico", "enfermedad actual", "motivo de consulta"]
 
   - nombre: Atención inicial de urgencias
+    titulos: ["atencion inicial de urgencias"]
     fuertes: ["atencion inicial de urgencias", triage, triaje]
-    apoyo: [urgencias, "ingreso a urgencias", "signos vitales", "clasificacion"]
-
-  - nombre: Notas de evolución
-    fuertes: ["nota de evolucion", "notas de evolucion"]
-    apoyo: [evolucion, subjetivo, objetivo, analisis, plan]
-
-  - nombre: Órdenes médicas
-    fuertes: ["orden medica", "ordenes medicas", "solicitud de servicios", "solicitud de examenes"]
-    apoyo: [ordena, solicita, "se solicita", "se ordena", indicaciones]
-
-  - nombre: Informes radiológicos
-    fuertes: ["informe radiologico", "estudio radiologico", "informe de imagenes"]
-    apoyo: [radiografia, tomografia, resonancia, ecografia, tac, rx, proyecciones, "hallazgos", "impresion diagnostica", radiologo]
-
-  - nombre: Laboratorio y ayudas diagnósticas
-    fuertes: ["laboratorio clinico", "resultado de laboratorio", "valores de referencia", "valor de referencia"]
-    apoyo: [hemograma, hemoglobina, leucocitos, plaquetas, glicemia, creatinina, bacteriologo, muestra]
+    apoyo: [urgencias]
 
   - nombre: Epicrisis
-    fuertes: [epicrisis, "resumen de egreso", "resumen de atencion"]
-    apoyo: [egreso, "fecha de egreso", "condicion de salida", "diagnostico de egreso"]
+    titulos: [epicrisis, "resumen de egreso"]
+    fuertes: [epicrisis, "resumen de egreso"]
+    apoyo: [egreso]
 
-  - nombre: Descripción quirúrgica
-    fuertes: ["descripcion quirurgica", "nota operatoria", "informe quirurgico", "acto quirurgico"]
-    apoyo: [cirujano, anestesiologo, anestesia, "procedimiento quirurgico", incision, hallazgos operatorios, ayudante, instrumentador]
+  - nombre: Notas de evolución
+    titulos: ["evolucion medica", "nota de evolucion", "notas de evolucion"]
+    fuertes: ["nota de evolucion", "evolucion medica"]
+    apoyo: [subjetivo, objetivo, analisis, plan]
 
-  - nombre: Materiales de osteosíntesis
-    fuertes: ["material de osteosintesis", osteosintesis, "remision de material", "certificado de material"]
-    apoyo: [placa, tornillo, tornillos, clavo, "lote", "referencia", proveedor, implante]
+  - nombre: Notas de enfermería
+    titulos: ["notas de enfermeria", "nota de enfermeria", "administracion de medicamentos", oxigeno]
+    fuertes: ["notas de enfermeria"]
+    apoyo: []
+
+  - nombre: Órdenes médicas
+    titulos: ["orden de interconsulta", "orden de laboratorio", "orden de radiologia", "orden de procedimiento", "orden de insumos", "orden medica", "ordenes medicas"]
+    fuertes: ["orden medica", "orden de radiologia", "orden de laboratorio"]
+    apoyo: [solicita, ordena]
 
   - nombre: Fórmulas de medicamentos
-    fuertes: ["formula medica", "formulacion de medicamentos", "orden de medicamentos", "medicamentos ambulatorios", "formula ambulatoria"]
-    apoyo: [medicamento, medicamentos, dosis, posologia, "via de administracion", tableta, ampolla, mg, frecuencia]
+    titulos: ["orden de medicamentos", "prescripcion de medicamentos", "formula medica", "medicamentos ambulatorios"]
+    fuertes: ["formula medica", "orden de medicamentos", "medicamentos ambulatorios"]
+    apoyo: [dosis, posologia]
+
+  - nombre: Descripción quirúrgica
+    titulos: ["informe quirurgico", "descripcion quirurgica", "nota operatoria"]
+    fuertes: ["descripcion quirurgica", "informe quirurgico"]
+    apoyo: [cirujano, anestesiologo]
+
+  - nombre: Materiales de osteosíntesis
+    titulos: ["hoja de gastos de material", "remision de material", "material de osteosintesis"]
+    fuertes: ["remision de material", "hoja de gastos de material"]
+    apoyo: []
+
+  - nombre: Laboratorio y ayudas diagnósticas
+    titulos: ["resultados de laboratorio", "laboratorio clinico"]
+    fuertes: ["resultados de laboratorio", "valores de referencia"]
+    apoyo: [hemograma]
+
+  - nombre: Informes radiológicos
+    titulos: ["fecha estudio", "informe radiologico", "informe de imagenes"]
+    fuertes: ["informe radiologico", "fecha estudio"]
+    apoyo: [radiografia, tomografia, ecografia, resonancia]
 
   - nombre: Póliza SOAT y documentos del vehículo
-    fuertes: ["poliza soat", "seguro obligatorio", "licencia de transito", "tarjeta de propiedad"]
-    apoyo: [poliza, soat, placa, vigencia, aseguradora, vehiculo, marca, modelo, chasis]
+    titulos: [soat, "licencia de transito", "seguro obligatorio", "poliza"]
+    fuertes: [soat, "licencia de transito"]
+    apoyo: [placa, vigencia]
 
   - nombre: Consulta RUNT
-    fuertes: [runt, "registro unico nacional de transito"]
-    apoyo: [consulta, "estado del vehiculo", "informacion del vehiculo", soat, vigencia, propietario]
+    titulos: ["consulta personas", "consulta vehiculo", "registro unico nacional de transito"]
+    fuertes: [runt]
+    apoyo: []
+
+  - nombre: Consulta ADRES
+    titulos: ["base de datos unica de afiliados", "administradora de los recursos del sistema general"]
+    fuertes: ["base de datos unica de afiliados"]
+    apoyo: []
 
   - nombre: Identificaciones
-    fuertes: ["cedula de ciudadania", "tarjeta de identidad", "registro civil de nacimiento", "republica de colombia identificacion"]
-    apoyo: [registraduria, "fecha de nacimiento", "lugar de nacimiento", "fecha y lugar de expedicion"]
+    titulos: ["cedula de ciudadania", "cedula de", "nuip", "tarjeta de identidad", "registrador nacional", "registro civil de nacimiento"]
+    fuertes: ["cedula de ciudadania", "registrador nacional"]
+    apoyo: []
 
-# Tipo que se propone cuando hay texto pero ninguna coincidencia suficiente.
 tipo_por_defecto: Otros

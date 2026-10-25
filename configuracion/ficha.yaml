@@ -1,21 +1,21 @@
-# Campos de la ficha maestra y patrones para extraerlos del TEXTO de los PDF.
+# Datos que se buscan en cada folio y los patrones para encontrarlos.
 #
-# - La extracción es determinística (expresiones regulares). No adivina: si un patrón
-#   no encuentra el dato, el campo queda vacío.
-# - Los patrones se aplican sobre el texto SIN tildes y sin distinguir mayúsculas.
+# - Se aplican sobre el texto SIN tildes y sin distinguir mayúsculas.
 # - Cada patrón debe tener un grupo con nombre (?P<valor>...).
-# - Comodines disponibles: {FECHA} (fechas comunes), {NUM_ID} (número de identificación).
-# - contexto_excluir: si alguna de esas palabras aparece antes del dato en la misma línea
-#   (máx. 80 caracteres), se descarta (p. ej. para no tomar la cédula del conductor como
-#   la del paciente).
-# - multiple: true = es normal que haya varios valores (diagnósticos, medicamentos);
-#   false = debería existir un único valor; si hay varios distintos es una discrepancia.
+# - Comodines: {FECHA} (fechas comunes, incluso "23 JUN 1997" y "30/septiembre/2026"),
+#   {NUM_ID} (número de identificación).
+# - contexto_excluir: si alguna de esas palabras aparece antes del dato en la misma línea, se descarta.
+# - excluir_si_sigue: si alguna aparece en los 120 caracteres siguientes, se descarta
+#   (p. ej. "especialidad": es la cédula del médico en su bloque de firma).
+# - multiple: true = es normal que haya varios valores.
 # - tipo: texto | nombre | fecha | identificacion | placa | codigo | numero | hora
-# - revisar_si_falta: true = si no se encuentra, se informa como dato faltante (regla 17).
+#
+# El FURIPS, el SIRAS, la póliza SOAT, la licencia de tránsito y la consulta RUNT tienen
+# lectores propios (auditoria/revision/formularios.py) porque son formularios con tablas.
 #
 # Puede editar este archivo sin reprogramar. Cambie "version" cuando lo modifique.
 
-version: "1.1"
+version: "1.2"
 fecha_actualizacion: "2026-10-25"
 
 bloques:
@@ -23,35 +23,29 @@ bloques:
   accidente: "B. Accidente"
   administrativo: "C. Datos administrativos"
   clinico: "D. Datos clínicos"
+  otros: "E. Otros"
 
 campos:
   # ---------------- A. Paciente ----------------
   - id: paciente.nombre
-    etiqueta: Nombres y apellidos
+    etiqueta: Nombre del paciente
     bloque: paciente
     tipo: nombre
     patrones:
-      - '(?:nombres? y apellidos(?: del paciente)?|nombre del paciente|nombre de la victima|paciente)\s*[:\-]\s*(?P<valor>[a-z][a-z ]{4,60})'
-    contexto_excluir: [propietario, conductor]
-    revisar_si_falta: true
-
-  - id: paciente.tipo_identificacion
-    etiqueta: Tipo de identificación
-    bloque: paciente
-    tipo: codigo
-    patrones:
-      - 'tipo de (?:identificacion|documento)\s*[:\-]?\s*(?P<valor>cc|ti|rc|ce|pa|pe|ppt|cedula de ciudadania|tarjeta de identidad|registro civil)\b'
-    contexto_excluir: [propietario, conductor]
+      - '(?:nombres? y apellidos(?: del paciente)?|nombre del paciente|nombre de la victima|\bpaciente)\s*[:\-]\s*(?P<valor>[a-z][a-z ]{4,60})'
+      - 'nombre del paciente\s+(?P<valor>[a-z][a-z ]{4,60})'
+    contexto_excluir: [propietario, conductor, responsable]
 
   - id: paciente.numero_identificacion
-    etiqueta: Número de identificación
+    etiqueta: Número de identificación del paciente
     bloque: paciente
     tipo: identificacion
     patrones:
-      - '(?:numero de identificacion|identificacion|documento de identidad|documento|cedula de ciudadania|cedula)\s*(?:no\.?|n\.?o\.?|numero)?\s*[:#.]?\s*(?P<valor>{NUM_ID})'
-      - '\b(?:c\.?c\.?|t\.?i\.?|r\.?c\.?|c\.?e\.?)\s*(?:no\.?)?\s*[:#.]?\s*(?P<valor>{NUM_ID})'
-    contexto_excluir: [propietario, conductor, nit, medico, profesional, registro medico]
-    revisar_si_falta: true
+      - '(?:numero de identificacion|identificacion|documento de identidad|cedula de ciudadania)\s*[:#.]?\s*(?:(?:cc|ti|ce|rc|pa|pe|ppt)\b\.?\s*-?\s*)?(?P<valor>{NUM_ID})'
+      - '\b(?:c\.?c\.?|t\.?i\.?|r\.?c\.?|c\.?e\.?)\s*(?:no\.?)?\s*[:#.\-]?\s*(?P<valor>{NUM_ID})'
+    contexto_excluir: [propietario, conductor, nit, medico, profesional, registro medico, responsable, tomador]
+    excluir_si_sigue: [especialidad, registro medico, cargo, r.m]
+    excluir_si_precede: [cargo, especialidad, entregado por, md. rad]
 
   - id: paciente.fecha_nacimiento
     etiqueta: Fecha de nacimiento
@@ -60,78 +54,63 @@ campos:
     patrones:
       - 'fecha de nacimiento\s*[:\-]?\s*(?P<valor>{FECHA})'
     contexto_excluir: [propietario, conductor]
-    revisar_si_falta: true
 
   - id: paciente.edad
-    etiqueta: Edad registrada en los documentos
+    etiqueta: Edad registrada
     bloque: paciente
     tipo: numero
     patrones:
-      - '\bedad\s*[:\-]?\s*(?P<valor>\d{1,3})\s*(?:anos|a\b)'
-      - '\bedad\s*[:\-]\s*(?P<valor>\d{1,3})\b'
+      - '\bedad\s*[:\-]?\s*(?P<valor>\d{1,3})\b'
 
   - id: paciente.sexo
     etiqueta: Sexo
     bloque: paciente
     tipo: codigo
     patrones:
-      - '\bsexo\s*[:\-]?\s*(?P<valor>masculino|femenino|hombre|mujer|m|f)\b'
+      - '\b(?:sexo|genero|sexo biologico|sexo al momento de nacer)\s*[:\-]?\s*(?P<valor>masculino|femenino|hombre|mujer|m|f)\b'
 
   - id: paciente.telefono
-    etiqueta: Teléfono de contacto
+    etiqueta: Teléfono del paciente
     bloque: paciente
     tipo: identificacion
     multiple: true
     patrones:
       - '(?:telefono|celular|tel\.)\s*[:\-]?\s*(?P<valor>\+?\d[\d \-]{6,14}\d)'
-    contexto_excluir: [propietario, conductor, prestador, ips]
+    contexto_excluir: [propietario, conductor, prestador, ips, responsable, parentezco, parentesco, callcenter, pbx, tomador, pagador]
 
   # ---------------- B. Accidente ----------------
   - id: accidente.fecha
-    etiqueta: Fecha del accidente
+    etiqueta: Fecha del evento
     bloque: accidente
     tipo: fecha
     patrones:
-      - 'fecha (?:del|de) (?:accidente|evento|siniestro|ocurrencia)\s*[:\-]?\s*(?P<valor>{FECHA})'
-    revisar_si_falta: true
+      - '(?:fecha (?:y hora )?(?:del|de|de la) (?:accidente|evento|siniestro|ocurrencia)|fecha hora del evento|fecha evento/accidente)\s*[:\-]?\s*(?P<valor>{FECHA})'
 
   - id: accidente.hora
-    etiqueta: Hora del accidente
+    etiqueta: Hora del evento
     bloque: accidente
     tipo: hora
     patrones:
-      - 'hora (?:del|de) (?:accidente|evento|siniestro|ocurrencia)\s*[:\-]?\s*(?P<valor>\d{1,2}:\d{2}(?:\s*[ap]\.?\s*m\.?)?)'
+      - '(?:hora (?:del|de) (?:accidente|evento|siniestro|ocurrencia))\s*[:\-]?\s*(?P<valor>\d{1,2}:\d{2})'
+      - '(?:fecha (?:y hora )?(?:del|de) (?:accidente|evento)|fecha hora del evento)\s*[:\-]?\s*{FECHA}\s+(?P<valor>\d{1,2}:\d{2})'
 
   - id: accidente.direccion
-    etiqueta: Dirección del accidente
+    etiqueta: Dirección del evento
     bloque: accidente
     tipo: texto
     patrones:
       - '(?:direccion|lugar) (?:del|de|de la) (?:accidente|evento|ocurrencia|siniestro)\s*[:\-]?\s*(?P<valor>[^\n]{3,80})'
 
-  - id: accidente.municipio
-    etiqueta: Municipio
-    bloque: accidente
-    tipo: texto
-    patrones:
-      - 'municipio (?:del|de) (?:accidente|evento|ocurrencia)\s*[:\-]?\s*(?P<valor>[a-z][a-z ]{2,40})'
-
-  - id: accidente.departamento
-    etiqueta: Departamento
-    bloque: accidente
-    tipo: texto
-    patrones:
-      - 'departamento (?:del|de) (?:accidente|evento|ocurrencia)\s*[:\-]?\s*(?P<valor>[a-z][a-z ]{2,40})'
-
   - id: accidente.zona
-    etiqueta: Zona
+    etiqueta: Zona del evento
     bloque: accidente
     tipo: codigo
     patrones:
-      - '\bzona\s*[:\-]?\s*(?P<valor>urbana|rural)\b'
+      - '\bzona(?: del (?:accidente|evento))?\s*[:\-]?\s*(?P<valor>urbana|rural)\b'
+    contexto_excluir: [residencia]
 
   - id: accidente.relato
-    etiqueta: Relato del accidente
+    etiqueta: Relato de los hechos
     bloque: accidente
     tipo: texto
     multiple: true
@@ -143,45 +122,22 @@ campos:
     bloque: accidente
     tipo: codigo
     patrones:
-      - '(?:condicion|calidad)(?: (?:de la victima|del accidentado|del lesionado|del paciente))?\s*[:\-]?\s*(?P<valor>conductor|peaton|ocupante|pasajero|ciclista|acompanante|motociclista|parrillero)\b'
+      - '(?:condicion|calidad)(?: (?:de la victima|del accidentado|del lesionado|del paciente))?\s*[:\-]?\s*(?P<valor>conductor|peaton|ocupante|pasajero|ciclista|acompanante|motociclista|parrillero|[1-4])\b'
 
   - id: accidente.placa
     etiqueta: Placa del vehículo
     bloque: accidente
     tipo: placa
     patrones:
-      - '\bplaca(?: del vehiculo)?\s*(?:no\.?)?\s*[:#\-]?\s*(?P<valor>[a-z]{3}\s?-?\s?\d{2}[a-z0-9])\b'
-    revisar_si_falta: true
-
-  - id: accidente.tipo_vehiculo
-    etiqueta: Tipo de vehículo
-    bloque: accidente
-    tipo: texto
-    patrones:
-      - 'tipo de vehiculo\s*[:\-]?\s*(?P<valor>[a-z][a-z ]{2,30})'
+      - '\bplaca(?:s)?(?: del vehiculo| no\.?)?\s*[:#\-]?\s*(?P<valor>[a-z][a-z0-9]{2}\s?-?\s?\d{2}[a-z0-9])\b'
 
   # ---------------- C. Administrativos ----------------
-  - id: administrativo.numero_furips
-    etiqueta: Número de FURIPS / radicado
-    bloque: administrativo
-    tipo: codigo
-    patrones:
-      - '(?:numero de radicado|radicado|numero de reclamacion|consecutivo furips)\s*(?:no\.?)?\s*[:#]?\s*(?P<valor>(?=[a-z\-]*\d)[a-z0-9\-]{4,20})'
-
   - id: administrativo.numero_factura
     etiqueta: Número de factura
     bloque: administrativo
     tipo: codigo
     patrones:
-      - 'factura(?: electronica)?(?: de venta)?\s*(?:no\.?|n\.?o\.?|numero|#)\s*[:#]?\s*(?P<valor>[a-z]{0,6}-?\d{1,12})\b'
-    revisar_si_falta: true
-
-  - id: administrativo.fecha_factura
-    etiqueta: Fecha de la factura
-    bloque: administrativo
-    tipo: fecha
-    patrones:
-      - 'fecha (?:de )?(?:expedicion|emision|facturacion|factura)\s*[:\-]?\s*(?P<valor>{FECHA})'
+      - 'factura(?: electronica)?(?: de venta)?\s*(?:no\.?|n\.?o\.?|numero|#|:)\s*[:#]?\s*(?P<valor>[a-z]{0,6}-?\d{1,12})\b'
 
   - id: administrativo.numero_poliza
     etiqueta: Número de póliza
@@ -189,28 +145,20 @@ campos:
     tipo: identificacion
     patrones:
       - 'poliza(?: soat)?\s*(?:no\.?|n\.?o\.?|numero|#)?\s*[:#]?\s*(?P<valor>\d[\d\-]{5,20}\d)'
-    revisar_si_falta: true
 
   - id: administrativo.vigencia_poliza_desde
-    etiqueta: Vigencia de la póliza (desde), según documentos
+    etiqueta: Vigencia de la póliza (desde)
     bloque: administrativo
     tipo: fecha
     patrones:
-      - 'vigencia\s*(?:desde)?\s*[:\-]?\s*(?P<valor>{FECHA})'
+      - 'vigencia[^\n]{0,20}?desde\s*[:\-]?\s*(?P<valor>{FECHA})'
 
   - id: administrativo.vigencia_poliza_hasta
-    etiqueta: Vigencia de la póliza (hasta), según documentos
+    etiqueta: Vigencia de la póliza (hasta)
     bloque: administrativo
     tipo: fecha
     patrones:
-      - 'vigencia[^\n]{0,40}?hasta\s*[:\-]?\s*(?P<valor>{FECHA})'
-
-  - id: administrativo.aseguradora
-    etiqueta: Aseguradora
-    bloque: administrativo
-    tipo: texto
-    patrones:
-      - 'aseguradora\s*[:\-]\s*(?P<valor>[^\n]{3,60})'
+      - 'vigencia[^\n]{0,60}?hasta\s*[:\-]?\s*(?P<valor>{FECHA})'
 
   - id: administrativo.propietario_nombre
     etiqueta: Propietario del vehículo
@@ -232,6 +180,7 @@ campos:
     tipo: nombre
     patrones:
       - '(?:nombre del )?conductor(?: del vehiculo)?\s*[:\-]\s*(?P<valor>[a-z][a-z ]{4,60})'
+    contexto_excluir: [estado]
 
   - id: administrativo.conductor_identificacion
     etiqueta: Identificación del conductor
@@ -239,20 +188,6 @@ campos:
     tipo: identificacion
     patrones:
       - 'conductor[^\n]{0,80}?(?:c\.?c\.?|identificacion|documento)\s*(?:no\.?)?\s*[:#.]?\s*(?P<valor>{NUM_ID})'
-
-  - id: administrativo.prestador
-    etiqueta: Prestador de servicios de salud
-    bloque: administrativo
-    tipo: texto
-    patrones:
-      - '(?:prestador(?: de servicios(?: de salud)?)?|institucion prestadora(?: de servicios de salud)?|ips)\s*[:\-]\s*(?P<valor>[^\n]{3,80})'
-
-  - id: administrativo.nit_prestador
-    etiqueta: NIT del prestador
-    bloque: administrativo
-    tipo: identificacion
-    patrones:
-      - '\bnit\s*(?:no\.?)?\s*[:.#]?\s*(?P<valor>\d[\d.]{5,12}(?:-\d)?)'
 
   # ---------------- D. Clínicos ----------------
   - id: clinico.motivo_consulta
@@ -264,60 +199,12 @@ campos:
       - 'motivo de (?:consulta|ingreso)\s*[:\-]?\s*(?P<valor>[^\n]{3,300})'
 
   - id: clinico.enfermedad_actual
-    etiqueta: Enfermedad actual (relato en la atención)
+    etiqueta: Enfermedad actual
     bloque: clinico
     tipo: texto
     multiple: true
     patrones:
       - 'enfermedad actual\s*[:\-]?\s*(?P<valor>[^\n]{10,400})'
-
-  - id: clinico.hallazgos
-    etiqueta: Hallazgos
-    bloque: clinico
-    tipo: texto
-    multiple: true
-    patrones:
-      - '\bhallazgos\s*[:\-]\s*(?P<valor>[^\n]{3,300})'
-
-  - id: clinico.diagnostico
-    etiqueta: Diagnósticos (código CIE-10)
-    bloque: clinico
-    tipo: codigo
-    multiple: true
-    patrones:
-      - '(?:diagnosticos?|dx|cie-?10|impresion diagnostica)[^\n]{0,80}?\b(?P<valor>[a-z]\d{2}(?:\.?\d{1,2})?)\b'
-
-  - id: clinico.procedimiento
-    etiqueta: Procedimientos
-    bloque: clinico
-    tipo: texto
-    multiple: true
-    patrones:
-      - 'procedimientos?(?: realizados?| quirurgicos?)?\s*[:\-]\s*(?P<valor>[^\n]{3,200})'
-
-  - id: clinico.examenes
-    etiqueta: Exámenes y ayudas diagnósticas solicitados
-    bloque: clinico
-    tipo: texto
-    multiple: true
-    patrones:
-      - '(?:se solicita|se ordena|solicitud de|ordenes?)\s*[:\-]?\s*(?P<valor>[^\n]{3,150})'
-
-  - id: clinico.medicamentos
-    etiqueta: Medicamentos
-    bloque: clinico
-    tipo: texto
-    multiple: true
-    patrones:
-      - '(?:medicamentos?|formula medica)\s*[:\-]\s*(?P<valor>[^\n]{3,150})'
-
-  - id: clinico.fecha_atencion
-    etiqueta: Fechas de atención
-    bloque: clinico
-    tipo: fecha
-    multiple: true
-    patrones:
-      - 'fecha (?:de )?(?:atencion|consulta)\s*[:\-]?\s*(?P<valor>{FECHA})'
 
   - id: clinico.fecha_ingreso
     etiqueta: Fecha de ingreso
@@ -325,6 +212,14 @@ campos:
     tipo: fecha
     patrones:
       - 'fecha (?:y hora )?(?:de )?ingreso\s*[:\-]?\s*(?P<valor>{FECHA})'
+      - '\bingreso\s*:\s*(?P<valor>{FECHA})'
+
+  - id: clinico.hora_ingreso
+    etiqueta: Hora de ingreso
+    bloque: clinico
+    tipo: hora
+    patrones:
+      - '(?:fecha (?:y hora )?(?:de )?ingreso|\bingreso)\s*[:\-]?\s*{FECHA}\s+(?P<valor>\d{1,2}:\d{2})'
 
   - id: clinico.fecha_egreso
     etiqueta: Fecha de egreso
@@ -332,3 +227,17 @@ campos:
     tipo: fecha
     patrones:
       - 'fecha (?:y hora )?(?:de )?(?:egreso|salida|alta)\s*[:\-]?\s*(?P<valor>{FECHA})'
+      - '\begreso\s*:\s*(?P<valor>{FECHA})'
+
+  # ---------------- E. Otros ----------------
+  - id: runt.documento
+    etiqueta: Documento consultado en el RUNT
+    bloque: otros
+    tipo: identificacion
+    patrones: []
+
+  - id: runt.estado_conductor
+    etiqueta: Estado del conductor según el RUNT
+    bloque: otros
+    tipo: texto
+    patrones: []

@@ -55,6 +55,23 @@ def leer_fecha(texto: str | None) -> date | None:
     if coincidencia and coincidencia.group(2) in MESES:
         return _fecha_segura(int(coincidencia.group(3)), MESES[coincidencia.group(2)], int(coincidencia.group(1)))
 
+    # 23 JUN 1997, 23/junio/1997, 23-jun-1997
+    coincidencia = re.search(r"\b(\d{1,2})[\s/-]+([a-z]{3,10})\.?[\s/-]+(\d{4})\b", limpio)
+    if coincidencia:
+        mes = _mes(coincidencia.group(2))
+        if mes:
+            return _fecha_segura(int(coincidencia.group(3)), mes, int(coincidencia.group(1)))
+
+    return None
+
+
+def _mes(texto: str) -> int | None:
+    """Número de mes a partir del nombre completo o abreviado (ene, feb, ..., sept)."""
+    if texto in MESES:
+        return MESES[texto]
+    for nombre, numero in MESES.items():
+        if len(texto) >= 3 and nombre.startswith(texto[:3]) and (texto == nombre[: len(texto)]):
+            return numero
     return None
 
 

@@ -1,26 +1,35 @@
 # Parámetros de la revisión automática de la cuenta.
 # Se pueden editar sin reprogramar. Las palabras se comparan sin tildes y sin mayúsculas.
 
-version: "1.0"
+version: "1.1"
 fecha_actualizacion: "2026-10-25"
 
 # Grupos de folios que se comparan entre sí (nombres de configuracion/tipos_documento.yaml).
 grupos:
   furips: [FURIPS]
-  admision: [Hoja de admisión, Atención inicial de urgencias, Historia clínica]
+  admision: [Hoja de admisión, Historia clínica, Atención inicial de urgencias]
+  siras: [SIRAS]
   factura: [Factura]
   poliza: [Póliza SOAT y documentos del vehículo]
   runt: [Consulta RUNT]
-  documentos_vehiculo: [Póliza SOAT y documentos del vehículo, Consulta RUNT, Identificaciones]
+  documentos_vehiculo: [Póliza SOAT y documentos del vehículo, Consulta RUNT]
   ordenes: [Órdenes médicas, Historia clínica, Atención inicial de urgencias, Hoja de admisión, Notas de evolución, Epicrisis]
   informes: [Informes radiológicos, Laboratorio y ayudas diagnósticas]
+  radiologia: [Informes radiológicos]
   quirurgico: [Descripción quirúrgica]
   material: [Materiales de osteosíntesis]
   evolucion: [Notas de evolución]
-  urgencias: [Atención inicial de urgencias]
-  con_firma_medica: [Informes radiológicos, Laboratorio y ayudas diagnósticas, Descripción quirúrgica, Epicrisis]
+  urgencias: [Atención inicial de urgencias, SIRAS]
+  con_firma_medica: [Informes radiológicos, Laboratorio y ayudas diagnósticas, Descripción quirúrgica, Epicrisis, Historia clínica]
 
-# Exámenes radiológicos (para informe, interpretación y justificación).
+# Código de "condición del accidentado" en algunos formatos (pendiente de validación con el formato oficial).
+codigos_calidad:
+  "1": conductor
+  "2": peaton
+  "3": ocupante
+  "4": ciclista
+
+# Exámenes radiológicos (informe, interpretación, justificación y cobro).
 estudios_radiologicos:
   radiografia: [radiografia, radiografias, rx]
   tomografia: [tomografia, tac, escanografia]
@@ -30,25 +39,29 @@ estudios_radiologicos:
 # Otras ayudas diagnósticas (solo justificación).
 otras_ayudas:
   hemograma: [hemograma, cuadro hematico]
-  electrocardiograma: [electrocardiograma, ekg, ecg]
+  electrocardiograma: [electrocardiograma, ekg]
 
 # Palabras que indican que un informe tiene interpretación.
-palabras_interpretacion: [hallazgos, conclusion, impresion diagnostica, opinion, se observa, no se observa, interpretacion]
+palabras_interpretacion: [hallazgos, conclusion, impresion, opinion, se observa, no se observa, interpretacion, fractura, conservad, preservad, cambios, sin evidencia, sin alteraciones, normal, edema, lesion]
 
-# Regiones anatómicas para revisar lateralidad (derecha / izquierda).
-regiones: [rodilla, tobillo, pie, mano, muneca, codo, hombro, cadera, femur, tibia, perone, humero, radio, cubito, clavicula, brazo, antebrazo, pierna, muslo, rotula, calcaneo, miembro inferior, miembro superior, hemitorax, ojo, oido, pierna]
+# Lateralidad: regiones anatómicas.
+regiones: [rodilla, tobillo, pie, mano, muneca, codo, hombro, cadera, femur, tibia, perone, humero, radio, cubito, clavicula, brazo, antebrazo, pierna, muslo, rotula, calcaneo, miembro inferior, miembro superior, extremidad inferior, extremidad superior, hemitorax]
+# Solo cuentan las menciones de la lesión, la imagen o el procedimiento (la línea debe tener alguna de estas palabras)...
+palabras_lesion: [fractura, herida, lesion, trauma, radiografia, rx, cirugia, quirurgic, osteosintesis, rafi, inmoviliz, ferula, yeso, vendaje, edema, deformidad, dolor, control, desbridamiento, clavo, material]
+# ...y se ignoran las que describen lo normal o cosas que no son la lesión.
+palabras_no_lesion: [eutrofic, sin lesion, no lesion, sin edema, normal, conservad, cateter, acceso venoso, canaliz, venopuncion, puncion, ejercicios, movilizacion de miembro, sano]
 
 # Materiales de osteosíntesis.
-materiales: [placa, tornillo, clavo, arandela, alambre, grapa, injerto, fijador, protesis, endoprotesis, cerclaje, aguja]
+materiales: [placa, tornillo, clavo, arandela, alambre, grapa, injerto, fijador, protesis, endoprotesis, cerclaje, aguja, tapon]
 
 # Identificación del médico y de su firma o registro en los informes.
-palabras_medico: ['\bdra?\.? [a-z]{3,}', '\b(?:medico|radiologo|cirujano|anestesiologo|especialista|profesional)\b\s*(?:tratante)?\s*[:\-]\s*[a-z]{3,}']
-palabras_firma: ['\bfirma', 'registro medico', '\breg\.? ?med', '\br\.? ?m\.? ?[:#]? ?\d', 'tarjeta profesional', '\bt\.? ?p\.? ?[:#]? ?\d']
+palabras_medico: ['\bdra?\.? [a-z]{3,}', '\b(?:medico general|ortopedista|anestesiologo|radiologo|md\.? ?rad|bacteriologo|cirujano|especialista|medico tratante)\b', '\bespecialidad\s*:']
+palabras_firma: ['\bfirma', 'registro medico\s*:?\s*\d', '\breg\.? ?med', '\br\.? ?m\.? ?[:#]? ?\d', 'tarjeta profesional', '(?:medico general|ortopedista|anestesiologo|radiologo|bacteriologo|especialista)\s*\n\s*\d{6,}']
 
 # Orden de medicamentos ambulatorios y firma del paciente.
-palabras_orden_ambulatoria: [medicamentos ambulatorios, formula ambulatoria, tratamiento ambulatorio, orden ambulatoria, formula de egreso]
+palabras_orden_ambulatoria: [medicamentos ambulatorios, formula ambulatoria, tratamiento ambulatorio, orden ambulatoria, formula de egreso, orden de medicamentos - salida, medicamentos de salida]
 palabras_firma_paciente: [firma del paciente, firma paciente, firma del usuario, firma usuario, firma de quien recibe, recibido por, firma del acudiente]
 
-# Cobro de urgencias y estancia.
+# Cobro de urgencias.
 palabras_cobro_urgencia: [urgencia, urgencias]
-palabras_soporte_urgencia: [triage, triaje, atencion inicial de urgencias, ingreso a urgencias]
+palabras_soporte_urgencia: [triage, triaje, atencion inicial de urgencias, atencion de urgencias, servicio de urgencias]
