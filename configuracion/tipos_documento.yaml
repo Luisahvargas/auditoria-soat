@@ -1,0 +1,73 @@
+# Tipos documentales y palabras clave para la clasificación PRELIMINAR de páginas.
+#
+# - La clasificación automática es solo una propuesta: el auditor siempre puede corregirla.
+# - Ningún tipo es obligatorio: que falte un tipo no se considera error por sí solo.
+# - Las palabras se comparan sin tildes y sin distinguir mayúsculas.
+# - "fuertes" suman 3 puntos (casi exclusivas del tipo); "apoyo" suman 1 punto.
+# - Puede editar este archivo sin reprogramar. Cambie "version" cuando lo modifique.
+
+version: "1.0"
+fecha_actualizacion: "2026-10-25"
+
+# Puntos mínimos para proponer un tipo. Por debajo se propone "Otros".
+puntaje_minimo: 3
+
+tipos:
+  - nombre: FURIPS
+    fuertes: [furips, "formulario unico de reclamacion"]
+    apoyo: ["victima", "accidente de transito", "datos del vehiculo", "datos del accidente", "reclamacion", "propietario", "conductor"]
+
+  - nombre: Factura
+    fuertes: ["factura electronica", "factura de venta", cufe]
+    apoyo: [factura, nit, subtotal, "valor total", "valor unitario", iva, cantidad, "resolucion de facturacion"]
+
+  - nombre: Historia clínica
+    fuertes: ["historia clinica"]
+    apoyo: [anamnesis, antecedentes, "revision por sistemas", "examen fisico", "enfermedad actual", "motivo de consulta"]
+
+  - nombre: Atención inicial de urgencias
+    fuertes: ["atencion inicial de urgencias", triage, triaje]
+    apoyo: [urgencias, "ingreso a urgencias", "signos vitales", "clasificacion"]
+
+  - nombre: Notas de evolución
+    fuertes: ["nota de evolucion", "notas de evolucion"]
+    apoyo: [evolucion, subjetivo, objetivo, analisis, plan]
+
+  - nombre: Órdenes médicas
+    fuertes: ["orden medica", "ordenes medicas", "solicitud de servicios", "solicitud de examenes"]
+    apoyo: [ordena, solicita, "se solicita", "se ordena", indicaciones]
+
+  - nombre: Informes radiológicos
+    fuertes: ["informe radiologico", "estudio radiologico", "informe de imagenes"]
+    apoyo: [radiografia, tomografia, resonancia, ecografia, tac, rx, proyecciones, "hallazgos", "impresion diagnostica", radiologo]
+
+  - nombre: Laboratorio y ayudas diagnósticas
+    fuertes: ["laboratorio clinico", "resultado de laboratorio", "valores de referencia", "valor de referencia"]
+    apoyo: [hemograma, hemoglobina, leucocitos, plaquetas, glicemia, creatinina, bacteriologo, muestra]
+
+  - nombre: Epicrisis
+    fuertes: [epicrisis, "resumen de egreso", "resumen de atencion"]
+    apoyo: [egreso, "fecha de egreso", "condicion de salida", "diagnostico de egreso"]
+
+  - nombre: Descripción quirúrgica
+    fuertes: ["descripcion quirurgica", "nota operatoria", "informe quirurgico", "acto quirurgico"]
+    apoyo: [cirujano, anestesiologo, anestesia, "procedimiento quirurgico", incision, hallazgos operatorios, ayudante, instrumentador]
+
+  - nombre: Materiales de osteosíntesis
+    fuertes: ["material de osteosintesis", osteosintesis, "remision de material", "certificado de material"]
+    apoyo: [placa, tornillo, tornillos, clavo, "lote", "referencia", proveedor, implante]
+
+  - nombre: Fórmulas de medicamentos
+    fuertes: ["formula medica", "formulacion de medicamentos", "orden de medicamentos"]
+    apoyo: [medicamento, medicamentos, dosis, posologia, "via de administracion", tableta, ampolla, mg, frecuencia]
+
+  - nombre: Póliza SOAT y documentos del vehículo
+    fuertes: ["poliza soat", "seguro obligatorio", "licencia de transito", "tarjeta de propiedad"]
+    apoyo: [poliza, soat, placa, vigencia, aseguradora, vehiculo, marca, modelo, chasis]
+
+  - nombre: Identificaciones
+    fuertes: ["cedula de ciudadania", "tarjeta de identidad", "registro civil de nacimiento", "republica de colombia identificacion"]
+    apoyo: [registraduria, "fecha de nacimiento", "lugar de nacimiento", "fecha y lugar de expedicion"]
+
+# Tipo que se propone cuando hay texto pero ninguna coincidencia suficiente.
+tipo_por_defecto: Otros

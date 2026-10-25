@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 RAIZ_PROYECTO = Path(__file__).resolve().parent.parent
 
 PROVEEDORES_IA_VALIDOS = ("desactivado", "puente_manual", "anthropic", "ollama")
+MOTORES_OCR_VALIDOS = ("ninguno", "tesseract")
 
 
 @dataclass(frozen=True)
@@ -22,9 +23,12 @@ class Configuracion:
 
     ruta_datos: Path
     url_base_datos: str
-    proveedor_ia: str
-    anthropic_api_key: str
-    anthropic_modelo: str
+    proveedor_ia: str = "desactivado"
+    anthropic_api_key: str = ""
+    anthropic_modelo: str = ""
+    motor_ocr: str = "ninguno"
+    ruta_tesseract: str = ""
+    ruta_configuracion: Path = RAIZ_PROYECTO / "configuracion"
 
     @property
     def ia_anthropic_disponible(self) -> bool:
@@ -54,12 +58,18 @@ def cargar_configuracion(archivo_env: Path | None = None) -> Configuracion:
             f"Opciones: {', '.join(PROVEEDORES_IA_VALIDOS)}"
         )
 
+    motor_ocr = os.getenv("OCR_MOTOR", "ninguno").strip().lower() or "ninguno"
+    if motor_ocr not in MOTORES_OCR_VALIDOS:
+        raise ValueError(f"OCR_MOTOR='{motor_ocr}' no es válido. Opciones: {', '.join(MOTORES_OCR_VALIDOS)}")
+
     return Configuracion(
         ruta_datos=ruta_datos,
         url_base_datos=url_base_datos,
         proveedor_ia=proveedor_ia,
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", "").strip(),
         anthropic_modelo=os.getenv("ANTHROPIC_MODELO", "").strip(),
+        motor_ocr=motor_ocr,
+        ruta_tesseract=os.getenv("RUTA_TESSERACT", "").strip(),
     )
 
 

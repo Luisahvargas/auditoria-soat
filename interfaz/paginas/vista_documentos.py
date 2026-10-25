@@ -2,9 +2,11 @@
 
 import streamlit as st
 
-from auditoria.documentos import inventario, lector_pdf
+from auditoria import catalogos
+from auditoria.db.repositorios import RepositorioDocumentos
+from auditoria.documentos import clasificador, inventario, lector_pdf
 from interfaz.componentes.visuales import insignia_procesamiento, texto_no_confiable
-from interfaz.estado import requerir_auditoria
+from interfaz.estado import auditoria_finalizada, requerir_auditoria
 from interfaz.recursos import obtener_configuracion, obtener_fabrica_sesiones
 
 CLAVE_IR_A = "ir_a_pagina"  # Otras pantallas pueden pedir abrir {"documento_id": ..., "pagina": ...}
@@ -37,9 +39,7 @@ def mostrar() -> None:
     )
 
     with fabrica() as sesion:
-        from auditoria.db.repositorios import RepositorioDocumentos
-
-        pagina = RepositorioDocumentos(sesion).obtener_pagina_por_numero(documento.id, int(numero))
+        pagina =RepositorioDocumentos(sesion).obtener_pagina_por_numero(documento.id, int(numero))
 
     columna_imagen, columna_datos = st.columns([3, 2], gap="large")
     with columna_imagen:
@@ -55,10 +55,43 @@ def mostrar() -> None:
         st.markdown(f"**Página interna del documento:** {pagina.pagina_interna or 'no identificada'}")
         st.markdown(f"**Caracteres de texto:** {pagina.caracteres} · **Método:** {pagina.metodo_texto}")
         if pagina.requiere_analisis_visual:
-            st.warning("Página sin texto suficiente: requiere OCR o análisis visual.")
+            st.warning("Página sin texto suficiente: pendiente de OCR o análisis visual.")
+        if pagina.legibilidad == catalogos.NO_LEGIBLE:
+            st.error("El auditor marcó esta página como ILEGIBLE.")
         _clasificacion(pagina, usuario, auditoria)
         texto_no_confiable(pagina.texto)
 
 
 def _clasificacion(pagina, usuario, auditoria) -> None:
-    """Se completa en la Fase 6."""
+    """Muestra la clasificación propuesta y permite al auditor confirmarla o corregirla."""
+    st.divider()
+    st.markdown("**Clasificación documental**")
+    if pagina.tipo_confirmado:
+        quien = f" (confirmada por el auditor el {pagina.fecha_clasificacion:%Y-%m-%d %H:%M})" if pagina.fecha_clasificacion else ""
+        st.success(f"{pagina.tipo_confirmado}{quien}")
+    elif pagina.tipo_propuesto:
+        st.info(f"Propuesta automática: **{pagina.tipo_propuesto}** · confianza {pagina.confianza_clasificacion} · sin confirmar")
+    else:
+        st.warning("Sin clasificar: la página no tiene texto (pendiente de análisis visual).")
+
+    if auditoria_finalizada():
+        return
+
+    nombres = clasificador.cargar_tipos().nombres
+    actual = pagina.tipo_efectivo
+    with st.form(f"clasificar_{pagina.id}"):
+        tipo = st.selectbox("Tipo documental", nombres, index=nombres.index(actual) if actual in nombres else 0)
+        legibilidad = st.radio(
+            "Legibilidad",
+            [catalogos.LEGIBILIDAD_SIN_EVALUAR, catalogos.LEGIBLE, catalogos.NO_LEGIBLE],
+            index=[catalogos.LEGIBILIDAD_SIN_EVALUAR, catalogos.LEGIBLE, catalogos.NO_LEGIBLE].index(pagina.legibilidad),
+            horizontal=True,
+        )
+        if st.form_submit_button("Guardar clasificación", type="primary"):
+            with obtener_fabrica_sesiones()() as sesion:
+                clasificador.confirmar_clasificacion(sesion, pagina.id, tipo, usuario["id"])
+                if legibilidad != pagina.legibilidad:
+                    clasificador.marcar_legibilidad(sesion, pagina.id, legibilidad, usuario["id"])
+                sesion.commit()
+            st.toast("Clasificación guardada.")
+            st.rerun()
