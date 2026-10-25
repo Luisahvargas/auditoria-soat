@@ -58,6 +58,7 @@ def pdf_con_pagina_en_blanco_e_imagen() -> bytes:
 
 VALORES_CUENTA = {
     "nombre": "Paciente Ficticio Uno",
+    "nombre_factura": None,  # None = el mismo nombre del paciente
     "id_furips": "1.234.567",
     "id_factura": "1234567",
     "id_urgencias": "1234567",
@@ -108,7 +109,7 @@ def paginas_cuenta_ficticia(**cambios) -> list[str]:
         f"FACTURA ELECTRONICA DE VENTA No. {v['factura']}\n"
         "Fecha de expedicion: 15/01/2025\n"
         "NIT 900123456-1\n"
-        f"Paciente: {v['nombre']}\n"
+        f"Paciente: {v['nombre_factura'] or v['nombre']}\n"
         f"Identificacion: {v['id_factura']}\n"
         "Servicios ficticios: consulta de urgencias, radiografia, osteosintesis\n"
         "Valor total: 1000000",

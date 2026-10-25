@@ -1,0 +1,6 @@
+# Perfil genérico: aplica todas las reglas activas sin ajustes.
+id: generica
+nombre: Genérica (sin ajustes de aseguradora)
+descripcion: Usa las reglas base tal como están definidas.
+reglas_desactivadas: []
+ajustes: {}

@@ -1,0 +1,382 @@
+# Reglas de verificación automática (versión base).
+#
+# Cada regla indica QUÉ revisar; la función Python indicada en "funcion" indica CÓMO.
+# Las reglas solo señalan lo que requiere revisión: nunca generan glosas ni rechazan cuentas.
+#
+# Campos:
+#   id, nombre, descripcion, categoria, funcion, parametros, evidencia_necesaria,
+#   severidad (Alta | Media | Baja), resultado_esperado, explicacion (para el auditor),
+#   aplicabilidad, referencia_normativa, version, fecha_validacion, activa.
+#
+# IMPORTANTE (CLAUDE.md, principio 7): ninguna referencia normativa ha sido verificada.
+# Todas dicen "Pendiente de validación" hasta que el equipo auditor confirme la fuente.
+# Los umbrales numéricos (días, etc.) también son provisionales y deben validarse.
+#
+# Los perfiles de aseguradora (configuracion/aseguradoras/) pueden desactivar reglas o
+# ajustar severidad y parámetros sin modificar este archivo.
+
+reglas:
+  - id: R01
+    nombre: Identificación del paciente distinta entre documentos
+    descripcion: Compara el número (y tipo) de identificación del paciente en todos los soportes.
+    categoria: Identificación del paciente
+    funcion: comparar_campos
+    parametros:
+      campos: [paciente.numero_identificacion, paciente.tipo_identificacion]
+    evidencia_necesaria: Número de identificación del paciente en al menos dos documentos.
+    severidad: Alta
+    resultado_esperado: El mismo número de identificación en todos los soportes.
+    explicacion: Un número de identificación distinto puede indicar un error de digitación o documentos de otra persona. Verifique en las páginas citadas.
+    aplicabilidad: Todas las cuentas.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true
+
+  - id: R02
+    nombre: Fecha de nacimiento distinta
+    descripcion: Compara la fecha de nacimiento del paciente entre soportes.
+    categoria: Identificación del paciente
+    funcion: comparar_campos
+    parametros:
+      campos: [paciente.fecha_nacimiento]
+    evidencia_necesaria: Fecha de nacimiento en al menos dos documentos.
+    severidad: Media
+    resultado_esperado: La misma fecha de nacimiento en todos los soportes.
+    explicacion: Una fecha de nacimiento distinta afecta el cálculo de la edad y puede indicar documentos de otra persona.
+    aplicabilidad: Todas las cuentas.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true
+
+  - id: R03
+    nombre: Edad incompatible con la fecha de nacimiento y la del accidente
+    descripcion: Calcula la edad a la fecha del accidente y la compara con la edad registrada en los documentos.
+    categoria: Identificación del paciente
+    funcion: edad_incompatible
+    parametros:
+      tolerancia_anios: 0
+    evidencia_necesaria: Fecha de nacimiento, fecha del accidente y edad registrada.
+    severidad: Media
+    resultado_esperado: La edad registrada coincide con la calculada a la fecha del accidente.
+    explicacion: La edad se calcula con la fecha del accidente, nunca con la fecha actual. Si la atención fue días después del accidente, el paciente pudo cumplir años en ese lapso; verifíquelo.
+    aplicabilidad: Todas las cuentas.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true
+
+  - id: R04
+    nombre: Fecha del evento distinta
+    descripcion: Compara la fecha del accidente entre soportes.
+    categoria: Datos del accidente
+    funcion: comparar_campos
+    parametros:
+      campos: [accidente.fecha, accidente.hora]
+    evidencia_necesaria: Fecha del accidente en al menos dos documentos.
+    severidad: Alta
+    resultado_esperado: La misma fecha del accidente en todos los soportes.
+    explicacion: La fecha del accidente determina la edad, la vigencia de la póliza y la secuencia de la atención.
+    aplicabilidad: Todas las cuentas.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true
+
+  - id: R05
+    nombre: Número de factura distinto
+    descripcion: Compara el número de factura entre soportes (y contra XML/RIPS cuando exista su lector).
+    categoria: Facturación
+    funcion: comparar_campos
+    parametros:
+      campos: [administrativo.numero_factura]
+      advertir_xml_rips_pendiente: true
+    evidencia_necesaria: Número de factura en al menos dos documentos.
+    severidad: Alta
+    resultado_esperado: El mismo número de factura en FURIPS, factura, XML y RIPS.
+    explicacion: Un número de factura distinto entre soportes requiere verificar a qué factura corresponde la reclamación.
+    aplicabilidad: Todas las cuentas.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true
+
+  - id: R06
+    nombre: Datos de póliza distintos o fecha del accidente fuera de la vigencia documentada
+    descripcion: Compara el número de póliza y verifica si la fecha del accidente está dentro de la vigencia que aparece en los documentos.
+    categoria: Póliza y vehículo
+    funcion: poliza
+    parametros: {}
+    evidencia_necesaria: Número de póliza y vigencia en los soportes; fecha del accidente.
+    severidad: Alta
+    resultado_esperado: El mismo número de póliza en todos los soportes y fecha del accidente dentro de la vigencia documentada.
+    explicacion: Solo se compara con la vigencia que aparece en los documentos cargados. No se consultan bases externas; la cobertura definitiva requiere validación.
+    aplicabilidad: Todas las cuentas.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true
+
+  - id: R07
+    nombre: Datos del vehículo distintos
+    descripcion: Compara la placa y el tipo de vehículo entre soportes.
+    categoria: Póliza y vehículo
+    funcion: comparar_campos
+    parametros:
+      campos: [accidente.placa, accidente.tipo_vehiculo]
+    evidencia_necesaria: Placa del vehículo en al menos dos documentos.
+    severidad: Alta
+    resultado_esperado: La misma placa en FURIPS, póliza y demás soportes.
+    explicacion: Una placa distinta puede indicar que la póliza aportada no corresponde al vehículo del accidente.
+    aplicabilidad: Todas las cuentas.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true
+
+  - id: R08
+    nombre: Propietario o conductor distintos
+    descripcion: Compara nombre e identificación del propietario y del conductor cuando aparecen en varios documentos.
+    categoria: Póliza y vehículo
+    funcion: comparar_campos
+    parametros:
+      campos: [administrativo.propietario_identificacion, administrativo.conductor_identificacion, administrativo.propietario_nombre, administrativo.conductor_nombre]
+      nombres_tolerantes: true
+    evidencia_necesaria: Datos del propietario o conductor en al menos dos documentos.
+    severidad: Media
+    resultado_esperado: Los mismos datos de propietario y conductor en todos los soportes.
+    explicacion: Solo se compara cuando el dato aparece en más de un documento.
+    aplicabilidad: Cuentas con datos de propietario o conductor.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true
+
+  - id: R09
+    nombre: Documentos que parecen de pacientes distintos
+    descripcion: Compara los nombres del paciente entre documentos de forma tolerante (orden de nombres, abreviaturas).
+    categoria: Identificación del paciente
+    funcion: pacientes_distintos
+    parametros:
+      similitud_minima: 0.5
+    evidencia_necesaria: Nombre del paciente en al menos dos documentos.
+    severidad: Alta
+    resultado_esperado: Todos los documentos corresponden al mismo paciente.
+    explicacion: Nombres muy distintos pueden indicar documentos de otro paciente mezclados en la cuenta. Verifique identificación y contenido.
+    aplicabilidad: Todas las cuentas.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true
+
+  - id: R10
+    nombre: Fechas de atención incompatibles o que requieren aclaración
+    descripcion: Revisa la secuencia accidente → ingreso → atenciones → egreso.
+    categoria: Fechas de atención
+    funcion: fechas_atencion
+    parametros:
+      dias_maximos_accidente_ingreso: 30
+    evidencia_necesaria: Fecha del accidente y fechas de ingreso, atención y egreso.
+    severidad: Media
+    resultado_esperado: La atención es posterior al accidente y el egreso posterior al ingreso.
+    explicacion: Una atención anterior al accidente o un egreso anterior al ingreso requieren aclaración. El umbral de días entre accidente e ingreso es provisional (pendiente de validación).
+    aplicabilidad: Todas las cuentas.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true
+
+  - id: R11
+    nombre: Lateralidad distinta entre documentos
+    descripcion: Busca la misma región anatómica descrita con lados distintos (derecho/izquierdo) en órdenes, informes, diagnósticos, procedimientos y facturación.
+    categoria: Pertinencia clínica
+    funcion: lateralidad
+    parametros:
+      regiones: [rodilla, tobillo, pie, mano, muneca, codo, hombro, cadera, femur, tibia, perone, humero, radio, cubito, clavicula, brazo, antebrazo, pierna, muslo, rotula, calcaneo, miembro inferior, miembro superior, hemitorax, ojo, oido]
+    evidencia_necesaria: Región anatómica con lateralidad en al menos dos páginas.
+    severidad: Alta
+    resultado_esperado: La misma lateralidad para la misma región en todos los soportes.
+    explicacion: Puede tratarse de lesiones bilaterales reales. Verifique en las páginas citadas antes de concluir.
+    aplicabilidad: Cuentas con lesiones o procedimientos con lateralidad.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true
+
+  - id: R12
+    nombre: Ayudas diagnósticas sin justificación clínica identificable
+    descripcion: Para cada estudio con informe (radiografía, tomografía, etc.), busca su orden o mención en la historia clínica, urgencias, evolución u órdenes.
+    categoria: Pertinencia clínica
+    funcion: ayudas_diagnosticas
+    parametros:
+      estudios:
+        radiografia: [radiografia, rx, radiologia]
+        tomografia: [tomografia, tac, escanografia]
+        resonancia: [resonancia, rmn]
+        ecografia: [ecografia, ecografico]
+        hemograma: [hemograma, cuadro hematico]
+      tipos_informe: [Informes radiológicos, Laboratorio y ayudas diagnósticas]
+      tipos_justificacion: [Historia clínica, Atención inicial de urgencias, Notas de evolución, Órdenes médicas, Epicrisis]
+    evidencia_necesaria: Informe del estudio y soporte clínico (orden o mención).
+    severidad: Media
+    resultado_esperado: Cada estudio informado tiene orden o justificación clínica identificable.
+    explicacion: Que no se identifique la justificación en el texto NO demuestra que el estudio sea impertinente. Verifique en los soportes (incluidas las páginas sin texto).
+    aplicabilidad: Cuentas con ayudas diagnósticas.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true
+
+  - id: R13
+    nombre: Estancia que requiere verificar su justificación
+    descripcion: Calcula los días de estancia y busca notas de evolución que la soporten.
+    categoria: Estancia
+    funcion: estancia
+    parametros:
+      umbral_dias_revision: 3
+    evidencia_necesaria: Fechas de ingreso y egreso; notas de evolución.
+    severidad: Media
+    resultado_esperado: La estancia tiene notas de evolución que la soportan.
+    explicacion: El umbral de días es provisional (pendiente de validación). La falta de notas en el texto no demuestra que la estancia no se justifique.
+    aplicabilidad: Cuentas con hospitalización u observación.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true
+
+  - id: R14
+    nombre: Materiales de osteosíntesis no identificados en soportes quirúrgicos
+    descripcion: Compara los materiales de los soportes de material con lo descrito en la descripción quirúrgica.
+    categoria: Materiales y procedimientos
+    funcion: materiales_osteosintesis
+    parametros:
+      materiales: [placa, tornillo, clavo, arandela, alambre, grapa, injerto, fijador, protesis, endoprotesis, cerclaje, aguja]
+      tipos_material: [Materiales de osteosíntesis]
+      tipos_quirurgicos: [Descripción quirúrgica]
+    evidencia_necesaria: Soporte de materiales y descripción quirúrgica.
+    severidad: Alta
+    resultado_esperado: Cada material facturado o remitido aparece en la descripción quirúrgica.
+    explicacion: Verifique tipo y cantidad de material en la descripción quirúrgica y en la remisión del proveedor.
+    aplicabilidad: Cuentas con procedimientos de osteosíntesis.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true
+
+  - id: R15
+    nombre: Medicamentos que requieren cotejo con la orden médica
+    descripcion: Verifica que existan órdenes o soportes clínicos para las fórmulas de medicamentos.
+    categoria: Medicamentos
+    funcion: medicamentos
+    parametros:
+      tipos_formula: [Fórmulas de medicamentos]
+      tipos_orden: [Órdenes médicas, Historia clínica, Atención inicial de urgencias, Notas de evolución, Epicrisis]
+    evidencia_necesaria: Fórmulas, órdenes médicas y medicamentos facturados (XML/RIPS).
+    severidad: Media
+    resultado_esperado: Cada medicamento facturado tiene orden médica.
+    explicacion: El cotejo detallado contra lo facturado requiere el lector de XML/RIPS (Fase 5, pendiente).
+    aplicabilidad: Cuentas con medicamentos.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true
+
+  - id: R16
+    nombre: Documentos ilegibles o sin texto
+    descripcion: Lista las páginas marcadas como ilegibles por el auditor y las que no tienen texto para revisar.
+    categoria: Calidad documental
+    funcion: ilegibles
+    parametros: {}
+    evidencia_necesaria: Páginas de los PDF.
+    severidad: Media
+    resultado_esperado: Todas las páginas son legibles.
+    explicacion: Las páginas sin texto no fueron revisadas por las reglas automáticas; requieren OCR o revisión visual.
+    aplicabilidad: Todas las cuentas.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true
+
+  - id: R17
+    nombre: Información no encontrada
+    descripcion: Informa los datos clave de la ficha que no se identificaron en los soportes (campos con revisar_si_falta en ficha.yaml).
+    categoria: Datos faltantes
+    funcion: informacion_no_encontrada
+    parametros: {}
+    evidencia_necesaria: Ficha maestra.
+    severidad: Media
+    resultado_esperado: Los datos clave están en los soportes.
+    explicacion: La ausencia de un dato no demuestra por sí sola un error. Puede estar en páginas sin texto o con otro formato.
+    aplicabilidad: Todas las cuentas.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true
+
+  - id: R18
+    nombre: Firmas o autenticación que requieren revisión
+    descripcion: Busca en el texto indicios de firma o registro profesional en los documentos clínicos.
+    categoria: Calidad documental
+    funcion: firmas
+    parametros:
+      palabras: [firma, firmado, "registro medico", "reg. med", "r.m.", "tarjeta profesional", "medico tratante", "elaborado por", "profesional que atiende"]
+      tipos: [Historia clínica, Atención inicial de urgencias, Notas de evolución, Órdenes médicas, Informes radiológicos, Epicrisis, Descripción quirúrgica, Fórmulas de medicamentos]
+    evidencia_necesaria: Texto de los documentos clínicos.
+    severidad: Baja
+    resultado_esperado: Cada documento clínico tiene firma o identificación del profesional.
+    explicacion: Las firmas manuscritas o en imagen no se detectan en el texto. Verifique visualmente la página.
+    aplicabilidad: Todas las cuentas.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true
+
+  - id: R19
+    nombre: Posibles duplicados documentales
+    descripcion: Busca páginas con texto idéntico dentro de la cuenta (los archivos idénticos ya se bloquean al cargar).
+    categoria: Calidad documental
+    funcion: duplicados
+    parametros:
+      minimo_caracteres: 80
+    evidencia_necesaria: Texto de las páginas.
+    severidad: Media
+    resultado_esperado: No hay páginas repetidas.
+    explicacion: Una página repetida puede ser una copia legítima o un soporte duplicado. Verifique si afecta lo facturado.
+    aplicabilidad: Todas las cuentas.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true
+
+  - id: R20
+    nombre: Diferencias entre datos extraídos y corregidos por el auditor
+    descripcion: Lista los datos en los que el valor del documento difiere del corregido por el auditor.
+    categoria: Trazabilidad
+    funcion: correcciones_auditor
+    parametros: {}
+    evidencia_necesaria: Ficha maestra con correcciones.
+    severidad: Baja
+    resultado_esperado: Las correcciones están soportadas.
+    explicacion: Confirme que cada corrección está respaldada por otro soporte; el valor original del documento se conserva.
+    aplicabilidad: Cuentas con correcciones del auditor.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true
+
+  - id: R21
+    nombre: Servicios facturados en XML/RIPS sin soporte en la historia clínica
+    descripcion: Cruza los servicios del XML/RIPS con los soportes clínicos.
+    categoria: Facturación
+    funcion: servicios_sin_soporte
+    parametros: {}
+    evidencia_necesaria: XML de factura electrónica o RIPS, e historia clínica.
+    severidad: Alta
+    resultado_esperado: Cada servicio facturado tiene soporte clínico identificable.
+    explicacion: Requiere el lector de XML/RIPS, que se construirá con ejemplos reales anonimizados (Fase 5).
+    aplicabilidad: Cuentas con XML o RIPS.
+    referencia_normativa: Pendiente de validación
+    version: "1.0"
+    fecha_validacion: null
+    activa: true

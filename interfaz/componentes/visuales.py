@@ -48,6 +48,14 @@ def etiqueta_origen(origen: str) -> str:
     return f"{ICONOS_ORIGEN.get(origen, '❔')} {origen}"
 
 
+_ESPECIALES_MARKDOWN = "\\`*_{}[]()#+-.!|<>$~:"
+
+
+def escapar_markdown(texto: str) -> str:
+    """Escapa el texto para que Streamlit lo muestre literal (sin enlaces, formato ni HTML)."""
+    return "".join("\\" + c if c in _ESPECIALES_MARKDOWN else c for c in (texto or ""))
+
+
 def texto_no_confiable(texto: str, altura: int = 250) -> None:
     """Muestra texto extraído de un documento SIN interpretarlo (ni como Markdown ni como HTML)."""
     st.text_area("Texto extraído (contenido del documento, solo lectura)", texto or "", height=altura, disabled=True)

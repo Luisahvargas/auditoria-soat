@@ -156,7 +156,11 @@ class RepositorioHallazgos:
         return self.sesion.get(Hallazgo, hallazgo_id)
 
     def listar_por_auditoria(self, auditoria_id: int, origen: str | None = None) -> list[Hallazgo]:
-        consulta = select(Hallazgo).where(Hallazgo.auditoria_id == auditoria_id)
+        consulta = (
+            select(Hallazgo)
+            .where(Hallazgo.auditoria_id == auditoria_id)
+            .options(selectinload(Hallazgo.usuario_revision))
+        )
         if origen:
             consulta = consulta.where(Hallazgo.origen == origen)
         return list(self.sesion.scalars(consulta.order_by(Hallazgo.id)))

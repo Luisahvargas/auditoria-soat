@@ -64,10 +64,14 @@ def _preparar_usuario_y_auditoria():
         usuario = servicio_usuarios.crear_usuario(sesion, "Auditor Ficticio")
         auditoria = servicio_auditorias.crear_auditoria(sesion, usuario.id, "DEMO-0002")
         for nombre, contenido in (
-            ("cuenta.pdf", generadores.pdf_concatenado()),
+            ("cuenta.pdf", generadores.cuenta_ficticia(lado_informe="izquierda", placa_poliza="XYZ987")),
             ("mixto.pdf", generadores.pdf_con_pagina_en_blanco_e_imagen()),
+            ("factura.xml", b"<ficticio/>"),
         ):
             inventario.cargar_archivo(sesion, obtener_configuracion(), auditoria.id, usuario.id, nombre, contenido)
+        from auditoria.reglas.motor import ejecutar_reglas
+
+        ejecutar_reglas(sesion, auditoria.id, usuario.id)
         sesion.commit()
         return {"id": usuario.id, "nombre": usuario.nombre}, {
             "id": auditoria.id,
