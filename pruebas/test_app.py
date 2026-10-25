@@ -90,6 +90,39 @@ def test_cada_pagina_carga_sin_errores(pagina):
     assert not app.exception, app.exception
 
 
+def _app_pagina(pagina):
+    usuario, auditoria = _preparar_usuario_y_auditoria()
+    app = AppTest.from_function(_ejecutar_pagina, args=(pagina,), default_timeout=60)
+    app.session_state["usuario_activo"] = usuario
+    app.session_state["auditoria_activa"] = auditoria
+    return app.run(), auditoria
+
+
+def test_exportacion_genera_excel_y_pdf_desde_la_interfaz():
+    app, auditoria = _app_pagina("exportacion")
+    next(b for b in app.button if b.label == "Generar Excel").click().run()
+    next(b for b in app.button if b.label == "Generar informe PDF").click().run()
+    assert not app.exception, app.exception
+    assert app.session_state[f"exportacion_excel_{auditoria['id']}"][:2] == b"PK"  # xlsx = zip
+    assert app.session_state[f"exportacion_pdf_{auditoria['id']}"][:4] == b"%PDF"
+
+
+def test_panel_permite_revisar_un_hallazgo():
+    from auditoria import catalogos
+    from auditoria.hallazgos import servicio
+    from interfaz.recursos import obtener_fabrica_sesiones
+
+    app, auditoria = _app_pagina("hallazgos")
+    with obtener_fabrica_sesiones()() as sesion:
+        pendientes_antes = len(servicio.pendientes_de_revision(sesion, auditoria["id"]))
+    # El primer formulario de revisión: confirmar (opción por defecto) y guardar.
+    next(b for b in app.button if b.label == "Guardar revisión").click().run()
+    assert not app.exception, app.exception
+    with obtener_fabrica_sesiones()() as sesion:
+        assert len(servicio.pendientes_de_revision(sesion, auditoria["id"])) == pendientes_antes - 1
+        assert any(h.estado_revision == catalogos.REVISION_CONFIRMADO for h in servicio.listar(sesion, auditoria["id"]))
+
+
 @pytest.mark.parametrize("pagina", [p for p in PAGINAS if p != "inicio"])
 def test_paginas_piden_auditoria_si_no_hay(pagina):
     app = AppTest.from_function(_ejecutar_pagina, args=(pagina,), default_timeout=60)

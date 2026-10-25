@@ -184,15 +184,15 @@ Actualiza esta sección al terminar cada fase.
 - [x] Fase 0 — Verificación del entorno (2026-10-25: Python 3.11.9, pip 24.0, Git 2.52.0; sin Tesseract ni Ollama; 11,7 GB RAM, GPU integrada Intel UHD — Ollama no recomendado)
 - [x] Fase 1 — Arquitectura confirmada (2026-10-25; la usuaria delegó las decisiones técnicas)
 - [x] Fase 2 — Estructura base (2026-10-25: 11 pruebas pasan; la app arranca)
-- [ ] Fase 3 — Interfaz inicial
-- [ ] Fase 4 — Carga y lectura de PDF
-- [ ] Fase 5 — Lectura de XML y JSON (RIPS)
-- [ ] Fase 6 — OCR opcional y clasificación documental
-- [ ] Fase 7 — Extracción y ficha maestra
-- [ ] Fase 8 — Motor de reglas
-- [ ] Fase 9 — Módulo de IA (puente manual)
-- [ ] Fase 10 — Panel final, revisión humana y exportaciones
-- [ ] Fase 11 — Preparación multiusuario (posterior)
+- [x] Fase 3 — Interfaz inicial (2026-10-25)
+- [x] Fase 4 — Carga y lectura de PDF (2026-10-25)
+- [ ] Fase 5 — Lectura de XML y JSON (RIPS) — **BLOQUEADA**: faltan ejemplos reales anonimizados. Los XML/JSON se guardan e inventarían como "Pendiente"; no se inventó su estructura.
+- [x] Fase 6 — OCR opcional y clasificación documental (2026-10-25; Tesseract no instalado, la app funciona sin él)
+- [x] Fase 7 — Extracción y ficha maestra (2026-10-25; extracción desde texto PDF y manual)
+- [x] Fase 8 — Motor de reglas (2026-10-25; 21 reglas, referencias "Pendiente de validación")
+- [x] Fase 9 — Módulo de IA (puente manual) (2026-10-25; API Anthropic preparada y desactivada)
+- [x] Fase 10 — Panel final, revisión humana y exportaciones (2026-10-25: 146 pruebas pasan; la app arranca)
+- [ ] Fase 11 — Preparación multiusuario (posterior; requiere aprobación de opciones y costos)
 
 ### Decisiones tomadas (Fase 1)
 
@@ -207,8 +207,21 @@ Actualiza esta sección al terminar cada fase.
 - Fechas guardadas en hora local del equipo.
 - Ajuste a la estructura: `interfaz\paginas\`, `interfaz\componentes\` e `interfaz\recursos.py` (configuración y conexión compartidas). `pytest.ini` en la raíz.
 
+### Decisiones tomadas (Fases 3 a 10)
+
+- Ajustes a la estructura: `auditoria/catalogos.py` (estados y textos comunes), `auditoria/texto.py` (normalización y fechas), `auditoria/auditorias/` (servicio y cierre), `auditoria/ia/puente_manual_proveedor.py` y `auditoria/ia/servicio.py`, `configuracion/ficha.yaml` (campos y patrones de la ficha).
+- Diferencias entre soportes con datos de extracción automática = "Posible inconsistencia"; solo pasan a "Contradicción documental" cuando el auditor validó los datos involucrados.
+- Al re-ejecutar las reglas se borran los resultados no revisados y se conservan (sin duplicar) los que el auditor ya revisó.
+- Descartar o modificar un hallazgo exige comentario; modificar conserva el estado original de la regla.
+- Las páginas sin texto se informan como alerta y en la regla R16 ("No evaluable"): las reglas no las revisaron.
+- La importación de IA es todo o nada y valida archivo y página contra la auditoría; la respuesta debe traer el identificador de la auditoría activa.
+- `.env` local creado con `PROVEEDOR_IA=puente_manual` (el código sigue con `desactivado` por defecto).
+- Finalizar exige: documentos cargados, ninguno en procesamiento, análisis posterior a la última carga, hallazgos de atención revisados y conclusión del auditor. Reabrir exige motivo.
+- El Excel y el PDF se generan del mismo resumen que la pantalla; los textos nunca se escriben como fórmulas ni se interpretan como marcado.
+
 ### Pendientes
 
+- **Fase 5:** ejemplos anonimizados de XML de factura electrónica y JSON de RIPS (bloquea R05 contra XML/RIPS, R15 cotejo y R21).
 - **Fase 9:** confirmar si la organización autoriza subir los PDF de las cuentas a claude.ai (puente manual) y con qué tipo de cuenta.
-- **Fase 5:** ejemplos anonimizados de XML de factura electrónica y JSON de RIPS.
-- **Fase 8:** nombres de las aseguradoras para sus perfiles.
+- **Fase 8:** nombres de las aseguradoras y sus requisitos escritos para crear perfiles reales; validar referencias normativas y umbrales (R10: 30 días, R13: 3 días).
+- Probar con cuentas reales: precisión de la clasificación y de los patrones de `ficha.yaml`.
