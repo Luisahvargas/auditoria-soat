@@ -1,0 +1,24 @@
+# Dependencias del proyecto (todas gratuitas). Versiones fijadas y probadas con Python 3.11.9.
+# Instalar dentro del entorno virtual:  .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+# Interfaz
+streamlit==1.66.1
+
+# Lectura de documentos
+pymupdf==2.0          # PDF (licencia AGPL; uso interno). Solo se usa desde auditoria/documentos/lector_pdf.py
+lxml==6.1.3           # Factura electrónica XML
+
+# Modelos de datos y base de datos
+pydantic==2.14.1
+SQLAlchemy==2.1.6
+
+# Configuración
+python-dotenv==1.2.4
+PyYAML==6.0.3
+
+# Exportaciones
+openpyxl==3.1.5
+reportlab==5.1.0
+
+# Pruebas
+pytest==9.1.1
