@@ -109,6 +109,8 @@ Las fases 0 a 10 anteriores (base de datos, usuarios, revisión humana, IA, expo
 - [x] Ajuste con la primera cuenta real (2026-10-26, IPS Medicentro Familiar, aseguradora Mundial): lectores de FURIPS, SIRAS, SOAT en tabla y RUNT; cantidades de material y ambulatorios; sección "Lectura de la cuenta". 53 pruebas pasan.
 - [x] OCR activo (2026-10-26): Tesseract 5.4 en `C:\Program Files\Tesseract-OCR`, idioma español en `%LOCALAPPDATA%\auditoria_soat\tessdata`. Lo leído solo por OCR nunca produce "Error", solo "Revisar".
 
+- [x] Distribución (2026-10-26): el equipo de Bogotá (Windows 11, administradores, un PC por auditor, sin VPN) instala la app en cada PC. `scripts\empaquetar.ps1` genera `dist\AuditoriaSOAT_<fecha>-<commit>.zip` con `instalar.bat` (Python, librerías, OCR, ícono) e `iniciar.bat`. Actualizar = descomprimir el ZIP nuevo en la misma carpeta y volver a ejecutar `instalar.bat`. No se usa nube: las cuentas no salen de cada PC.
+
 ### Cómo mejorar con cada cuenta nueva (la usuaria subirá más facturas de prueba)
 
 1. Correr la cuenta y mirar la sección "LECTURA DE LA CUENTA": documentos no reconocidos y folios "Otros".
