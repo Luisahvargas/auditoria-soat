@@ -24,4 +24,4 @@ prefijos:
   DQX: {nombre: "Descripción quirúrgica", tipo: Descripción quirúrgica}
   OPF: {nombre: "Órdenes o prescripciones", tipo: Órdenes médicas}
   HAM: {nombre: "Administración de medicamentos", tipo: Notas de enfermería}
-  CRC: {nombre: "Comprobante de recibido", tipo: Otros}
+  CRC: {nombre: "Documentos del vehículo y la víctima (licencia, RUNT, SOAT, identificación, SIRAS)", tipo: Póliza SOAT y documentos del vehículo}

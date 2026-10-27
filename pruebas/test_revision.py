@@ -94,9 +94,10 @@ def test_dato_ausente_es_falta_y_no_error():
 
 def test_folios_escaneados_se_informan_como_no_revisados():
     cuenta, _, texto = auditar([("escaneo.pdf", generadores.pdf_con_pagina_escaneada())], CONFIG)
-    assert [f.numero for f in cuenta.folios_sin_texto()] == [2, 3]
-    assert "2 folio(s) escaneados no se pudieron leer" in texto
-    assert "folio 2, folio 3" in texto
+    assert [f.numero for f in cuenta.folios_sin_texto()] == [3]  # La imagen sin texto
+    assert [f.numero for f in cuenta.folios_en_blanco()] == [2]  # La hoja en blanco se informa aparte
+    assert "1 folio(s) escaneados no se pudieron leer y no fueron revisados: folio 3" in texto
+    assert "Folios en blanco (sin contenido): folio 2." in texto
 
 
 def test_ocr_simulado_lee_folios_escaneados(monkeypatch):
@@ -104,7 +105,7 @@ def test_ocr_simulado_lee_folios_escaneados(monkeypatch):
     monkeypatch.setattr(ocr, "ocr_imagen", lambda _e, _png: "INFORME RADIOLOGICO radiografia de rodilla, texto reconocido ficticio")
     cuenta, _, _ = auditar([("escaneo.pdf", generadores.pdf_con_pagina_escaneada())], replace(CONFIG, motor_ocr="tesseract"))
     assert not cuenta.folios_sin_texto()
-    assert [f.metodo for f in cuenta.folios] == ["Texto PDF", "OCR", "OCR"]
+    assert [f.metodo for f in cuenta.folios] == ["Texto PDF", "En blanco", "OCR"]  # La hoja en blanco no pasa por OCR
 
 
 def test_diferencia_que_solo_viene_del_ocr_queda_para_revisar(monkeypatch):

@@ -222,12 +222,18 @@ def leer_documentos_vehiculo(texto: str) -> list[tuple[str, str, str]]:
                     break
         if "vigencia" in linea and not any(d[0] == "administrativo.vigencia_poliza_desde" for d in datos):
             bloque = " ".join(lineas[j] for j in ventana)
+            evidencia = " ".join(bloque.split())[:200]
             triples = re.findall(r"\b(20\d{2})\s+(\d{1,2})\s+(\d{1,2})\b", bloque)
+            # Tabla con fechas dd/mm/aaaa (p. ej. RUNT: "Fecha expedición | Fecha inicio de vigencia | Fecha fin de vigencia")
+            fechas = re.findall(r"\b(\d{1,2}/\d{1,2}/\d{4})\b", " ".join(lineas[j] for j in ventana if j != i))
             if len(triples) >= 2:  # año mes día: el último par es desde / hasta
                 (a1, m1, d1), (a2, m2, d2) = triples[-2], triples[-1]
-                evidencia = " ".join(bloque.split())[:200]
                 datos.append(("administrativo.vigencia_poliza_desde", f"{d1}/{m1}/{a1}", evidencia))
                 datos.append(("administrativo.vigencia_poliza_hasta", f"{d2}/{m2}/{a2}", evidencia))
+            elif "inicio" in linea and len(fechas) >= 2:
+                desde, hasta = (fechas[1], fechas[2]) if "expedicion" in linea and len(fechas) >= 3 else (fechas[-2], fechas[-1])
+                datos.append(("administrativo.vigencia_poliza_desde", desde, evidencia))
+                datos.append(("administrativo.vigencia_poliza_hasta", hasta, evidencia))
         if "propietario" in linea and not any(d[0] == "administrativo.propietario_identificacion" for d in datos):
             for j in ventana:
                 m = re.search(r"([a-zñ][a-zñ ]{4,60}?)\s+c\.?\s?c\.?\s*([\d.]{5,15})", lineas[j][linea.index("propietario") + 11 :] if j == i else lineas[j])

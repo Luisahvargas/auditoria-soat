@@ -91,6 +91,10 @@ def mostrar_resultado(resultado, clave: str, titulo: str, avisos: list[str] | No
             + "  ".join(f"`{cuenta.ubicacion(f)}`" for f in sin_texto),
             icon="📷",
         )
+    en_blanco = cuenta.folios_en_blanco()
+    if en_blanco:
+        st.info(f"**{len(en_blanco)} folio(s) en blanco** (hojas sin contenido): "
+                + "  ".join(f"`{cuenta.ubicacion(f)}`" for f in en_blanco), icon="📄")
     for error in cuenta.errores_lectura:
         st.error(f"No se pudo leer {escapar(error)}")
 
@@ -125,7 +129,8 @@ def mostrar_resultado(resultado, clave: str, titulo: str, avisos: list[str] | No
         filas: dict[tuple[str, str], list] = {}
         for folio in cuenta.folios:
             archivo = cuenta.etiquetas.get(folio.archivo, folio.archivo)
-            filas.setdefault((archivo, folio.tipo or "Sin texto (escaneado sin leer)"), []).append(folio)
+            tipo = folio.tipo or ("En blanco" if folio.en_blanco else "Sin texto (escaneado sin leer)")
+            filas.setdefault((archivo, tipo), []).append(folio)
         st.dataframe(
             [
                 {

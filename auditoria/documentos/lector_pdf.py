@@ -43,6 +43,16 @@ def leer_paginas(contenido: bytes) -> Iterator[PaginaLeida]:
             yield PaginaLeida(numero=indice + 1, texto=texto or "")
 
 
+def porcentaje_en_blanco(contenido: bytes, numero: int) -> float:
+    """Porcentaje de píxeles casi blancos de una página (100 = hoja en blanco)."""
+    with _abrir(contenido) as documento:
+        pagina = documento[numero - 1]
+        imagen = pagina.get_pixmap(matrix=pymupdf.Matrix(0.3, 0.3), colorspace=pymupdf.csGRAY, alpha=False)
+        muestras = imagen.samples
+        claros = sum(1 for valor in muestras if valor > 240)
+        return 100 * claros / max(len(muestras), 1)
+
+
 def renderizar_pagina(contenido: bytes, numero: int, ancho_px: int = 2000) -> bytes:
     """Imagen PNG de una página (para el OCR)."""
     with _abrir(contenido) as documento:

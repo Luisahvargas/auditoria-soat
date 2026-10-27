@@ -85,7 +85,7 @@ def _resumir(ubicaciones: list[str]) -> str:
 
 def _documentos(cuenta: Cuenta, tipos) -> list[list[Folio]]:
     """Folios consecutivos del mismo tipo forman un documento (los folios escaneados intermedios no lo cortan)."""
-    sin_texto = {(f.archivo, f.numero) for f in cuenta.folios_sin_texto()}
+    sin_texto = {(f.archivo, f.numero) for f in cuenta.folios_sin_texto() + cuenta.folios_en_blanco()}
     documentos: list[list[Folio]] = []
     for folio in cuenta.folios:
         if folio.tipo not in tipos:
@@ -197,11 +197,15 @@ CONFUSIONES_NUMERO = str.maketrans("OIZSB", "01258")
 
 
 def _clave_placa(dato: Dato) -> str:
-    """Placa sin las confusiones típicas de lectura (I/1, O/0): 3 letras, 2 números, 1 carácter."""
+    """Placa sin las confusiones típicas de lectura (I/1, O/0): 3 letras, 2 números, 1 carácter.
+
+    El último carácter puede ser letra (motos: EMA87I) o número (carros: ABC123), así que se
+    lleva a número para que «EMA87I» y «EMA871» se consideren la misma placa leída distinto.
+    """
     p = dato.normalizado
     if len(p) != 6:
         return p
-    return p[:3].translate(CONFUSIONES_LETRA) + p[3:5].translate(CONFUSIONES_NUMERO) + p[5]
+    return p[:3].translate(CONFUSIONES_LETRA) + p[3:5].translate(CONFUSIONES_NUMERO) + p[5].translate(CONFUSIONES_NUMERO)
 
 
 FAMILIAS_CALIDAD = {

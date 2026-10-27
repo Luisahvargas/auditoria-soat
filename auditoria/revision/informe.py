@@ -44,7 +44,7 @@ def lectura_de_la_cuenta(cuenta: Cuenta) -> list[str]:
         prefijo = f"{archivo}: " if len(archivos) > 1 else ""
         por_tipo: dict[str, list[int]] = {}
         for f in del_archivo:
-            por_tipo.setdefault(f.tipo or "Sin texto (escaneado sin leer)", []).append(f.numero)
+            por_tipo.setdefault(f.tipo or ("En blanco" if f.en_blanco else "Sin texto (escaneado sin leer)"), []).append(f.numero)
         reconocidos = "; ".join(f"{t} ({_rangos(ns)})" for t, ns in por_tipo.items())
         lineas.append(f"- {prefijo}Documentos reconocidos: {reconocidos}.")
 
@@ -85,6 +85,9 @@ def generar_texto(cuenta: Cuenta, puntos: list[Punto], incluir_correctos: bool =
             + ", ".join(cuenta.ubicacion(f) for f in sin_texto)
             + "."
         )
+    en_blanco = cuenta.folios_en_blanco()
+    if en_blanco:
+        lineas.append(f"Folios en blanco (sin contenido): {', '.join(cuenta.ubicacion(f) for f in en_blanco)}.")
     for error in cuenta.errores_lectura:
         lineas.append(f"ATENCIÓN: no se pudo leer {error}")
 

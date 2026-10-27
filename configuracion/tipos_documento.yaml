@@ -95,7 +95,7 @@ tipos:
     apoyo: [placa, vigencia]
 
   - nombre: Consulta RUNT
-    titulos: ["consulta personas", "consulta vehiculo", "registro unico nacional de transito"]
+    titulos: ["consulta personas", "consulta vehiculo", "consulta automotores", "registro unico nacional de transito"]
     fuertes: [runt]
     apoyo: []
 

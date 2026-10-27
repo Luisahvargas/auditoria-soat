@@ -150,6 +150,41 @@ def test_lateralidad_ignora_examen_normal_y_detecta_lado_cruzado():
     assert "folio 2" in lateralidad.folios
 
 
+RUNT_AUTOMOTORES = """Consulta Automotores
+PLACA DEL VEHÍCULO: ABC12D
+credit_card Póliza SOAT
+Número de póliza Fecha expedición Fecha inicio de vigencia Fecha fin de vigencia Entidad expide SOAT Código tarifa Estado
+ASEGURADORA FICTICIA S.A.
+11112222 30/12/2025 01/01/2026 31/12/2026 120 VIGENTE
+"""
+
+
+def test_runt_consulta_automotores_con_vigencia_en_tabla():
+    assert clasificar_texto(RUNT_AUTOMOTORES) == "Consulta RUNT"
+    datos = {c: v for c, v, _ in formularios.leer_runt(RUNT_AUTOMOTORES)}
+    assert datos["administrativo.numero_poliza"] == "11112222"
+    assert datos["accidente.placa"] == "ABC12D"
+    assert leer_fecha(datos["administrativo.vigencia_poliza_desde"]) == date(2026, 1, 1)
+    assert leer_fecha(datos["administrativo.vigencia_poliza_hasta"]) == date(2026, 12, 31)
+
+
+def test_hoja_en_blanco_no_es_folio_sin_leer():
+    cuenta, _, texto = _cuenta(HISTORIA, None, generadores.SOLO_IMAGEN)
+    assert [f.numero for f in cuenta.folios_en_blanco()] == [2]
+    assert [f.numero for f in cuenta.folios_sin_texto()] == [3]  # La imagen sí es un escaneo sin leer
+    assert "Folios en blanco (sin contenido): folio 2." in texto
+
+
+def test_placa_con_confusion_en_la_ultima_letra_queda_para_revisar():
+    soat = SOAT_TABLA.replace("ABC12D", "ABC120")  # Moto ABC12D leída como ABC120 (D/0 no es confusión)
+    _, puntos, _ = _cuenta(FURIPS_TABLA, soat)
+    assert next(p for p in puntos if p.nombre.startswith("Placa")).resultado == "Error"
+    furips_moto = FURIPS_TABLA.replace("ABC12D", "EMA87I")
+    soat_moto = SOAT_TABLA.replace("ABC12D", "EMA871")  # I final leída como 1
+    _, puntos, _ = _cuenta(furips_moto, soat_moto)
+    assert next(p for p in puntos if p.nombre.startswith("Placa")).resultado == "Revisar"
+
+
 def test_placa_con_confusion_i_1_queda_para_revisar():
     soat = SOAT_TABLA.replace("ABC12D", "A8C12D")  # 8 por B: posible error de lectura
     _, puntos, _ = _cuenta(FURIPS_TABLA, soat)

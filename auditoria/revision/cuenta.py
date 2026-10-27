@@ -15,6 +15,8 @@ from auditoria.texto import quitar_tildes
 
 # Un folio con menos caracteres visibles que esto se considera sin texto útil (escaneado).
 MINIMO_CARACTERES_TEXTO = 40
+# Una página sin texto con al menos este porcentaje de píxeles blancos es una hoja en blanco.
+PORCENTAJE_HOJA_EN_BLANCO = 99.5
 
 
 @dataclass
@@ -27,7 +29,12 @@ class Folio:
 
     @property
     def sin_texto(self) -> bool:
-        return self.tipo is None
+        """Folio escaneado que no se pudo leer (las hojas en blanco no cuentan)."""
+        return self.tipo is None and self.metodo != "En blanco"
+
+    @property
+    def en_blanco(self) -> bool:
+        return self.metodo == "En blanco"
 
     @property
     def texto_normalizado(self) -> str:
@@ -75,6 +82,9 @@ class Cuenta:
     def folios_sin_texto(self) -> list[Folio]:
         return [f for f in self.folios if f.sin_texto]
 
+    def folios_en_blanco(self) -> list[Folio]:
+        return [f for f in self.folios if f.en_blanco]
+
 
 def _contar_caracteres(texto: str) -> int:
     return len(re.sub(r"\s", "", texto or ""))
@@ -107,7 +117,13 @@ def leer_cuenta(
             texto, metodo = pagina.texto, "Texto PDF"
             if _contar_caracteres(texto) < MINIMO_CARACTERES_TEXTO:
                 texto, metodo = "", "Sin texto"
-                if estado.disponible:
+                try:
+                    en_blanco = lector_pdf.porcentaje_en_blanco(contenido, pagina.numero) >= PORCENTAJE_HOJA_EN_BLANCO
+                except lector_pdf.ErrorLecturaPDF:
+                    en_blanco = False
+                if en_blanco:
+                    metodo = "En blanco"
+                elif estado.disponible:
                     try:
                         reconocido = ocr.ocr_imagen(estado, lector_pdf.renderizar_pagina(contenido, pagina.numero))
                     except (RuntimeError, OSError, lector_pdf.ErrorLecturaPDF):
