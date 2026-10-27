@@ -1,0 +1,27 @@
+# Cuentas que llegan como documentos separados (p. ej. La Previsora).
+#
+# Cada archivo se llama  PREFIJO_NIT_FACTURA.pdf   (ej. FEV_900385628_MDF65863.pdf)
+# - El programa agrupa los archivos por FACTURA y audita cada factura solo con sus documentos.
+# - El PREFIJO indica qué documento es. Se usa como ayuda para clasificar los folios cuando
+#   el documento no trae un título reconocible (el título del documento siempre tiene prioridad).
+#
+# Significados: según el nombre del archivo; PENDIENTE DE CONFIRMAR con la aseguradora.
+# Si aparece un prefijo nuevo, agréguelo aquí sin reprogramar.
+
+version: "1.0"
+fecha_actualizacion: "2026-10-26"
+
+# Acepta mayúsculas o minúsculas y la copia que crea Windows al descargar dos veces: "... (1).pdf".
+patron_nombre: '^(?P<prefijo>[A-Za-z]+)_(?P<nit>\d+)_(?P<factura>[A-Za-z0-9\-]+?)(?:\s*\(\d+\))?\.pdf$'
+
+prefijos:
+  FURIPS: {nombre: "Formulario FURIPS", tipo: FURIPS}
+  FEV: {nombre: "Factura electrónica de venta", tipo: Factura}
+  EPI: {nombre: "Epicrisis", tipo: Epicrisis}
+  HEV: {nombre: "Historia clínica / resumen de atención", tipo: Historia clínica}
+  HAU: {nombre: "Hoja de atención de urgencias", tipo: Atención inicial de urgencias}
+  PDX: {nombre: "Resultados de apoyo diagnóstico", tipo: Laboratorio y ayudas diagnósticas}
+  DQX: {nombre: "Descripción quirúrgica", tipo: Descripción quirúrgica}
+  OPF: {nombre: "Órdenes o prescripciones", tipo: Órdenes médicas}
+  HAM: {nombre: "Administración de medicamentos", tipo: Notas de enfermería}
+  CRC: {nombre: "Comprobante de recibido", tipo: Otros}

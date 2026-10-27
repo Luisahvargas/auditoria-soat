@@ -462,8 +462,26 @@ def _radiologia_facturada(cuenta: Cuenta) -> Punto:
     return Punto(S_FACTURA, nombre, CORRECTO, f"Se cobran {total} estudio(s) radiológico(s) y hay {len(informes)} informe(s).", folios)
 
 
+def _factura_del_nombre(cuenta: Cuenta) -> Punto:
+    """Cuentas por documentos separados: el número del nombre del archivo debe ser el de la factura."""
+    nombre = "Número de factura del nombre de los archivos"
+    esperada = re.sub(r"[^0-9A-Z]", "", cuenta.factura_esperada.upper())
+    datos = cuenta.datos_de("administrativo.numero_factura", _grupo("furips") + _grupo("factura"))
+    if not datos:
+        return Punto(S_FACTURA, nombre, FALTA, f"Los archivos son de la factura {cuenta.factura_esperada}, "
+                     "pero no se encontró el número de factura dentro del FURIPS ni de la factura.")
+    distintos = [d for d in datos if d.normalizado != esperada]
+    folios = _lista_folios(cuenta, [d.folio for d in distintos or datos])
+    if distintos:
+        return Punto(S_FACTURA, nombre, REVISAR if _solo_ocr(distintos) else ERROR,
+                     f"Los archivos son de la factura {cuenta.factura_esperada}, pero dentro dicen: {_describir(cuenta, distintos)}."
+                     + (NOTA_OCR if _solo_ocr(distintos) else ""), folios)
+    return Punto(S_FACTURA, nombre, CORRECTO, f"Los documentos corresponden a la factura {cuenta.factura_esperada}.", folios)
+
+
 def revisar_factura(cuenta: Cuenta) -> list[Punto]:
     return [
+        *([_factura_del_nombre(cuenta)] if cuenta.factura_esperada else []),
         comparar(cuenta, S_FACTURA, "Número de factura (FURIPS vs. factura)", "administrativo.numero_factura", ["furips", "factura"]),
         _urgencia(cuenta),
         _estancia(cuenta),

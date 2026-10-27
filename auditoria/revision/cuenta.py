@@ -50,13 +50,17 @@ class Cuenta:
     datos: list[Dato] = field(default_factory=list)
     errores_lectura: list[str] = field(default_factory=list)
     mensaje_ocr: str = ""
+    etiquetas: dict[str, str] = field(default_factory=dict)  # Nombre corto de cada archivo (p. ej. "FEV")
+    factura_esperada: str | None = None  # Número de factura según el nombre de los archivos
 
     @property
     def varios_archivos(self) -> bool:
         return len({f.archivo for f in self.folios}) > 1
 
     def ubicacion(self, folio: Folio) -> str:
-        """'folio 3' o 'cuenta.pdf folio 3' si hay varios archivos."""
+        """'folio 3', 'cuenta.pdf folio 3' si hay varios archivos, o 'FEV folio 3' si el archivo tiene etiqueta."""
+        if folio.archivo in self.etiquetas:
+            return f"{self.etiquetas[folio.archivo]} folio {folio.numero}"
         return f"{folio.archivo} folio {folio.numero}" if self.varios_archivos else f"folio {folio.numero}"
 
     def folios_de(self, tipos) -> list[Folio]:
@@ -73,9 +77,18 @@ def _contar_caracteres(texto: str) -> int:
     return len(re.sub(r"\s", "", texto or ""))
 
 
-def leer_cuenta(archivos: list[tuple[str, bytes]], config: Configuracion) -> Cuenta:
-    """Lee los PDF de la cuenta (nombre, contenido), clasifica cada folio y extrae sus datos."""
-    cuenta = Cuenta()
+def leer_cuenta(
+    archivos: list[tuple[str, bytes]],
+    config: Configuracion,
+    tipos_por_archivo: dict[str, str | None] | None = None,
+    etiquetas: dict[str, str] | None = None,
+) -> Cuenta:
+    """Lee los PDF de la cuenta (nombre, contenido), clasifica cada folio y extrae sus datos.
+
+    tipos_por_archivo: tipo sugerido por el nombre del archivo; se usa si el primer folio no trae título.
+    """
+    cuenta = Cuenta(etiquetas=dict(etiquetas or {}))
+    tipos_por_archivo = tipos_por_archivo or {}
     estado = ocr.estado_ocr(config)
     cuenta.mensaje_ocr = estado.mensaje
     definicion = cargar_definicion()
@@ -86,7 +99,7 @@ def leer_cuenta(archivos: list[tuple[str, bytes]], config: Configuracion) -> Cue
         except lector_pdf.ErrorLecturaPDF as error:
             cuenta.errores_lectura.append(f"{nombre}: {error}")
             continue
-        tipo_anterior = None
+        tipo_anterior = tipos_por_archivo.get(nombre)
         for pagina in paginas:
             texto, metodo = pagina.texto, "Texto PDF"
             if _contar_caracteres(texto) < MINIMO_CARACTERES_TEXTO:
