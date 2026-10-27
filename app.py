@@ -10,13 +10,14 @@ Ejecutar con:  .\\.venv\\Scripts\\python.exe -m streamlit run app.py
 import os
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from auditoria.config import RAIZ_PROYECTO, cargar_configuracion
 from auditoria.documentos.ocr import estado_ocr
 from auditoria.revision import auditar
 from auditoria.revision.informe import lectura_de_la_cuenta
-from auditoria.revision.paquetes import agrupar_por_factura, auditar_factura, describir_prefijo, documentos_faltantes, repetidos
-from auditoria.revision.puntos import CORRECTO, ERROR, FALTA, NO_APLICA, REVISAR
+from auditoria.revision.paquetes import auditar_documentos, describir_prefijo, leer_nombre
+from auditoria.revision.puntos import CORRECTO, ERROR, FALTA, NO_APLICA, REVISAR, factura_principal
 
 ESTILO = {
     ERROR: {"icono": "❌", "titulo": "Errores", "caja": st.error},
@@ -59,10 +60,6 @@ def tarjeta(punto) -> None:
     if folios and punto.resultado != CORRECTO:
         contenido += f"\n\n📄 {folios}"
     estilo["caja"](contenido, icon=estilo["icono"])
-
-
-def contar(puntos) -> dict[str, int]:
-    return {r: sum(p.resultado == r for p in puntos) for r in ESTILO}
 
 
 def mostrar_resultado(resultado, clave: str, titulo: str, avisos: list[str] | None = None) -> None:
@@ -166,6 +163,15 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+# El traductor automático del navegador modifica la página y provoca errores ("removeChild"):
+# se marca la página como "no traducir".
+components.html(
+    "<script>const d = window.parent.document; d.documentElement.setAttribute('translate', 'no');"
+    "d.documentElement.classList.add('notranslate');"
+    "if (!d.querySelector('meta[name=google]')) { const m = d.createElement('meta'); m.name = 'google';"
+    "m.content = 'notranslate'; d.head.appendChild(m); }</script>",
+    height=0,
+)
 
 st.title("Auditoría de cuenta SOAT")
 archivo_version = RAIZ_PROYECTO / "version.txt"
@@ -185,7 +191,7 @@ if os.getenv("AVISO_WEB"):
     )
 
 MUNDIAL = "🏢 Mundial de Seguros · paquete completo en un PDF"
-PREVISORA = "📂 La Previsora · documentos separados por factura"
+PREVISORA = "📂 La Previsora · varios documentos de una factura"
 modo = st.radio("¿Cómo llega la cuenta?", [MUNDIAL, PREVISORA], horizontal=True, key="modo")
 aviso_ocr = " Los folios escaneados se leen con OCR: puede tardar unos segundos por folio." if ocr.disponible else ""
 
@@ -209,81 +215,39 @@ if modo == MUNDIAL:
     mostrar_resultado(st.session_state["resultado"], "cuenta", "Resultado · " + ", ".join(sorted({f.archivo for f in cuenta_mundial.folios})))
     st.stop()
 
-# ---------------- La Previsora: documentos separados por factura ----------------
+# ---------------- La Previsora: varios documentos de UNA factura ----------------
 with st.container(border=True):
-    st.markdown("Sube **todos los documentos** (pueden ser de varias facturas). Deben llamarse "
-                "`PREFIJO_NIT_FACTURA.pdf`, por ejemplo `FEV_900385628_MDF65863.pdf`. "
-                "Cada factura se audita solo con sus documentos.")
-    archivos = st.file_uploader("📎 Documentos de las cuentas", type=["pdf"], accept_multiple_files=True, key="pdf_previsora")
-    st.caption(("🔤 " if ocr.disponible else "⚠️ ") + ocr.mensaje)
+    st.markdown("Sube **todos los documentos de la factura** (FURIPS, factura, epicrisis, osteosíntesis, etc.), "
+                "con el nombre que tengan. Se auditan juntos; si algún documento es de **otra factura**, se marca como error.")
+    archivos = st.file_uploader("📎 Documentos de la factura", type=["pdf"], accept_multiple_files=True, key="pdf_previsora")
+    columna_boton, columna_ocr = st.columns([1, 3], vertical_alignment="center")
+    auditar_ahora = columna_boton.button("🔍 Auditar factura", type="primary", disabled=not archivos, width="stretch", key="auditar_previsora")
+    columna_ocr.caption(("🔤 " if ocr.disponible else "⚠️ ") + ocr.mensaje)
 
-if not archivos:
-    st.info("👆 Sube los documentos. El programa los agrupará por número de factura.")
-    st.stop()
+if archivos:
+    with st.expander(f"📄 {len(archivos)} documento(s) cargado(s)"):
+        st.dataframe(
+            [
+                {
+                    "Archivo": a.name,
+                    "Tamaño (MB)": round(a.size / 1024 / 1024, 1),
+                    "Según el nombre": describir_prefijo(leer_nombre(a.name)[0]) if leer_nombre(a.name) else "—",
+                }
+                for a in archivos
+            ],
+            hide_index=True,
+            width="stretch",
+        )
 
-grupos, no_reconocidos = agrupar_por_factura([(a.name, a.getvalue()) for a in archivos])
-faltantes = documentos_faltantes(grupos)
-if no_reconocidos:
-    st.warning("Estos archivos no siguen el formato `PREFIJO_NIT_FACTURA.pdf` y no se tendrán en cuenta: "
-               + ", ".join(f"`{n}`" for n in no_reconocidos), icon="⚠️")
-if not grupos:
-    st.stop()
+if archivos and auditar_ahora:
+    with st.spinner(f"Revisando {len(archivos)} documento(s)…" + aviso_ocr):
+        st.session_state["resultado_previsora"] = auditar_documentos([(a.name, a.getvalue()) for a in archivos], configuracion)
 
-st.markdown(f"**Se encontraron {len(grupos)} factura(s):**")
-st.dataframe(
-    [
-        {
-            "Factura": factura,
-            "NIT": soportes[0].nit,
-            "Documentos": ", ".join(s.prefijo for s in soportes),
-            "Le falta (frente a las otras facturas)": ", ".join(faltantes[factura]) or "—",
-            "Repetidos": ", ".join(repetidos(soportes)) or "—",
-        }
-        for factura, soportes in grupos.items()
-    ],
-    hide_index=True,
-    width="stretch",
-)
-with st.expander("¿Qué significa cada prefijo?"):
-    prefijos = sorted({s.prefijo for soportes in grupos.values() for s in soportes})
-    st.markdown("\n".join(f"- **{p}**: {describir_prefijo(p)}" for p in prefijos))
-
-seleccion = st.multiselect("Facturas a auditar", list(grupos), default=list(grupos))
-if st.button(f"🔍 Auditar {len(seleccion)} factura(s)", type="primary", disabled=not seleccion):
-    resultados = {}
-    progreso = st.progress(0.0, text="Revisando…")
-    for i, factura in enumerate(seleccion, start=1):
-        progreso.progress((i - 1) / len(seleccion), text=f"Revisando factura {factura} ({i} de {len(seleccion)})…{aviso_ocr}")
-        resultados[factura] = auditar_factura(grupos[factura], configuracion)
-    progreso.empty()
-    st.session_state["resultados_previsora"] = resultados
-    st.session_state["faltantes_previsora"] = faltantes
-
-resultados = st.session_state.get("resultados_previsora")
-if not resultados:
+if "resultado_previsora" not in st.session_state:
+    st.info("👆 Sube los documentos de la factura y pulsa **Auditar factura**.")
     st.stop()
 
 st.divider()
-st.subheader("Resumen de las facturas auditadas")
-resumen = []
-for factura, (cuenta, puntos, _) in resultados.items():
-    c = contar(puntos)
-    resumen.append({
-        "Factura": factura,
-        "Estado": "🚨 Con errores" if c[ERROR] else ("⚠️ Revisar" if c[FALTA] or c[REVISAR] else "✅ Sin errores"),
-        "❌ Errores": c[ERROR],
-        "🟡 No encontrado": c[FALTA],
-        "👁️ Revisar a mano": c[REVISAR],
-        "Folios": len(cuenta.folios),
-    })
-st.dataframe(resumen, hide_index=True, width="stretch")
-
-texto_todas = "\n\n".join(f"{'=' * 60}\nFACTURA {factura}\n{'=' * 60}\n{texto}" for factura, (_, _, texto) in resultados.items())
-st.download_button("⬇️ Descargar el texto de todas las facturas (.txt)", texto_todas.encode("utf-8"),
-                   file_name="auditoria_facturas.txt", mime="text/plain", key="descarga_todas")
-
-factura_vista = st.selectbox("Ver el detalle de la factura", list(resultados),
-                             format_func=lambda f: f"{f} — {next(r['Estado'] for r in resumen if r['Factura'] == f)}")
-falta_vista = st.session_state.get("faltantes_previsora", {}).get(factura_vista, [])
-avisos = [f"A esta factura le falta: {', '.join(f'**{p}** ({describir_prefijo(p)})' for p in falta_vista)}, que sí llegó para otras facturas."] if falta_vista else []
-mostrar_resultado(resultados[factura_vista], factura_vista, f"Factura {factura_vista}", avisos)
+resultado_previsora = st.session_state["resultado_previsora"]
+principal, _ = factura_principal(resultado_previsora[0])
+mostrar_resultado(resultado_previsora, principal or "factura", f"Factura {principal or '(sin número identificado)'}")

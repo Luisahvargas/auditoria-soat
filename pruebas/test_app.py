@@ -16,7 +16,7 @@ def test_modo_previsora_abre_sin_errores():
     app = AppTest.from_file(str(RAIZ_PROYECTO / "app.py"), default_timeout=60).run()
     app.radio[0].set_value(app.radio[0].options[1]).run()
     assert not app.exception
-    assert any("documentos separados" in m.value or "agrupará por número de factura" in m.value for m in app.info)
+    assert any("Auditar factura" in m.value for m in app.info)
 
 
 def test_aviso_de_version_web_solo_en_la_nube(monkeypatch):

@@ -51,7 +51,10 @@ class Cuenta:
     errores_lectura: list[str] = field(default_factory=list)
     mensaje_ocr: str = ""
     etiquetas: dict[str, str] = field(default_factory=dict)  # Nombre corto de cada archivo (p. ej. "FEV")
-    factura_esperada: str | None = None  # Número de factura según el nombre de los archivos
+
+    @property
+    def archivos(self) -> list[str]:
+        return list(dict.fromkeys(f.archivo for f in self.folios))
 
     @property
     def varios_archivos(self) -> bool:

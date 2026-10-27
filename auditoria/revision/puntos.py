@@ -462,26 +462,90 @@ def _radiologia_facturada(cuenta: Cuenta) -> Punto:
     return Punto(S_FACTURA, nombre, CORRECTO, f"Se cobran {total} estudio(s) radiológico(s) y hay {len(informes)} informe(s).", folios)
 
 
-def _factura_del_nombre(cuenta: Cuenta) -> Punto:
-    """Cuentas por documentos separados: el número del nombre del archivo debe ser el de la factura."""
-    nombre = "Número de factura del nombre de los archivos"
-    esperada = re.sub(r"[^0-9A-Z]", "", cuenta.factura_esperada.upper())
-    datos = cuenta.datos_de("administrativo.numero_factura", _grupo("furips") + _grupo("factura"))
+def factura_principal(cuenta: Cuenta) -> tuple[str | None, str]:
+    """Número de la factura auditada: el que aparece en más documentos (factura y FURIPS).
+
+    En empate gana el que aparece más veces y, si sigue el empate, el de la factura.
+    """
+    datos = cuenta.datos_de("administrativo.numero_factura", _grupo("factura") + _grupo("furips"))
+    datos = [d for d in datos if d.folio.metodo != "OCR"] or datos
     if not datos:
-        return Punto(S_FACTURA, nombre, FALTA, f"Los archivos son de la factura {cuenta.factura_esperada}, "
-                     "pero no se encontró el número de factura dentro del FURIPS ni de la factura.")
-    distintos = [d for d in datos if d.normalizado != esperada]
-    folios = _lista_folios(cuenta, [d.folio for d in distintos or datos])
-    if distintos:
-        return Punto(S_FACTURA, nombre, REVISAR if _solo_ocr(distintos) else ERROR,
-                     f"Los archivos son de la factura {cuenta.factura_esperada}, pero dentro dicen: {_describir(cuenta, distintos)}."
-                     + (NOTA_OCR if _solo_ocr(distintos) else ""), folios)
-    return Punto(S_FACTURA, nombre, CORRECTO, f"Los documentos corresponden a la factura {cuenta.factura_esperada}.", folios)
+        return None, ""
+
+    def puntaje(valor: str):
+        del_valor = [d for d in datos if d.normalizado == valor]
+        return (len({d.folio.archivo for d in del_valor}), len(del_valor), any(d.folio.tipo in _grupo("factura") for d in del_valor))
+
+    principal = max({d.normalizado for d in datos}, key=puntaje)
+    fuentes = sorted({"la factura" if d.folio.tipo in _grupo("factura") else "el FURIPS" for d in datos if d.normalizado == principal})
+    return principal, " y ".join(fuentes)
+
+
+def _misma_factura(cuenta: Cuenta) -> Punto:
+    """Todos los documentos deben ser de la misma factura (contenido y nombre del archivo)."""
+    nombre = "Todos los documentos son de la misma factura"
+    principal, fuente = factura_principal(cuenta)
+    if principal is None:
+        return Punto(S_FACTURA, nombre, FALTA, "No se encontró el número de factura en la factura ni en el FURIPS.")
+    letras = re.match(r"[A-Z]+", principal)
+    invalidos, solo_ocr = [], True
+    for archivo in cuenta.archivos:
+        del_archivo = [d for d in cuenta.datos_de("administrativo.numero_factura") if d.folio.archivo == archivo]
+        # El documento es de otra factura si TODOS sus números son distintos (las diferencias dentro de un
+        # mismo documento las revisa la comparación FURIPS vs. factura).
+        datos = del_archivo if del_archivo and all(d.normalizado != principal for d in del_archivo) else []
+        en_nombre = set()
+        if letras:  # Códigos con el mismo prefijo de la factura en el nombre del archivo (p. ej. MDF65867)
+            nombre_archivo = re.sub(r"[^0-9A-Z]", " ", archivo.upper())
+            en_nombre = set(re.findall(rf"\b{letras.group(0)}\d+\b", nombre_archivo)) - {principal}
+        if datos or en_nombre:
+            solo_ocr &= not en_nombre and _solo_ocr(datos)
+            motivos = []
+            if en_nombre:
+                motivos.append(f"el nombre del archivo dice {', '.join(sorted(en_nombre))}")
+            if datos:
+                motivos.append(f"el documento dice {_describir(cuenta, datos)}")
+            etiqueta = cuenta.etiquetas.get(archivo, archivo)
+            invalidos.append((archivo, f"«{etiqueta}»: " + " y ".join(motivos)))
+    # Documentos sin el número de la factura ni la identificación del paciente: no se puede comprobar a qué factura son.
+    ids = [d.normalizado for d in cuenta.datos_de("paciente.numero_identificacion")]
+    paciente = max(set(ids), key=ids.count) if ids else None
+    nombres = cuenta.datos_de("paciente.nombre")
+    nombre_paciente = max(nombres, key=lambda n: sum(_similitud(n.valor, o.valor) == 1.0 for o in nombres)).valor if nombres else ""
+
+    def es_del_paciente(archivo: str) -> bool:
+        return any(d.folio.archivo == archivo and d.normalizado == paciente for d in cuenta.datos_de("paciente.numero_identificacion")) or any(
+            d.folio.archivo == archivo and _similitud(nombre_paciente, d.valor) == 1.0 for d in nombres
+        )
+
+    invalidos_archivos = {a for a, _ in invalidos}
+    sin_comprobar = [
+        archivo for archivo in cuenta.archivos
+        if archivo not in invalidos_archivos
+        and not any(d.folio.archivo == archivo and d.normalizado == principal for d in cuenta.datos_de("administrativo.numero_factura"))
+        and not es_del_paciente(archivo)
+    ]
+    nota_sin_comprobar = (
+        " No traen el número de factura ni la identificación del paciente, revise que sean de esta cuenta: "
+        + ", ".join(f"«{cuenta.etiquetas.get(a, a)}»" for a in sin_comprobar) + "."
+    ) if sin_comprobar else ""
+
+    if invalidos:
+        folios = _lista_folios(cuenta, [f for f in cuenta.folios if f.archivo in invalidos_archivos][:20])
+        detalle = (f"La factura auditada es {principal} (según {fuente}), pero hay documentos que NO corresponden a esta factura: "
+                   + " | ".join(m for _, m in invalidos) + ". Verifique que no se haya cargado un soporte de otra factura.")
+        return Punto(S_FACTURA, nombre, REVISAR if solo_ocr else ERROR, detalle + (NOTA_OCR if solo_ocr else "") + nota_sin_comprobar, folios)
+    if sin_comprobar:
+        verificados = len(cuenta.archivos) - len(sin_comprobar)
+        return Punto(S_FACTURA, nombre, REVISAR,
+                     f"{verificados} documento(s) corresponden a la factura {principal} o al paciente.{nota_sin_comprobar}",
+                     [f"{cuenta.etiquetas.get(a, a)}" for a in sin_comprobar])
+    return Punto(S_FACTURA, nombre, CORRECTO, f"Los {len(cuenta.archivos)} documento(s) corresponden a la factura {principal} y al paciente.")
 
 
 def revisar_factura(cuenta: Cuenta) -> list[Punto]:
     return [
-        *([_factura_del_nombre(cuenta)] if cuenta.factura_esperada else []),
+        *([_misma_factura(cuenta)] if len(cuenta.archivos) > 1 else []),
         comparar(cuenta, S_FACTURA, "Número de factura (FURIPS vs. factura)", "administrativo.numero_factura", ["furips", "factura"]),
         _urgencia(cuenta),
         _estancia(cuenta),
