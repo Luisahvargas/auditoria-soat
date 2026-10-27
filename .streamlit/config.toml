@@ -1,0 +1,6 @@
+# Apariencia de la aplicación (colores y tipografía).
+[theme]
+primaryColor = "#1F6FEB"
+
+[server]
+maxUploadSize = 300  # MB: las cuentas escaneadas pueden ser grandes
