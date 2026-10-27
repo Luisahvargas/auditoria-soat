@@ -107,13 +107,22 @@ NOMBRES_GRUPO = {
 }
 
 
+def _mostrar(dato: Dato) -> str:
+    """Valor para el informe: las fechas siempre como dd/mm/aaaa."""
+    if "fecha" in dato.campo or "vigencia" in dato.campo:
+        fecha = leer_fecha(dato.valor)
+        if fecha:
+            return f"{fecha:%d/%m/%Y}"
+    return dato.valor
+
+
 def _describir(cuenta: Cuenta, datos: list[Dato], clave=None) -> str:
     clave = clave or (lambda d: d.normalizado)
     por_valor: dict[str, list[Dato]] = {}
     for d in datos:
         por_valor.setdefault(clave(d), []).append(d)
     return "; ".join(
-        f"«{ds[0].valor}» ({_resumir(_lista_folios(cuenta, [d.folio for d in ds]))})" for ds in por_valor.values()
+        f"«{_mostrar(ds[0])}» ({_resumir(_lista_folios(cuenta, [d.folio for d in ds]))})" for ds in por_valor.values()
     )
 
 
@@ -312,7 +321,7 @@ def _evento_antes_de_ingreso(cuenta: Cuenta) -> Punto:
         return Punto(
             S_FURIPS, nombre, ERROR,
             f"El evento queda DESPUÉS del ingreso ({ingreso:%d/%m/%Y %H:%M}): {detalle}.",
-            folios + _lista_folios(cuenta, [d.folio for d in cuenta.datos_de("clinico.fecha_ingreso")][:3]),
+            folios,
         )
     return Punto(S_FURIPS, nombre, CORRECTO, f"El evento es anterior al ingreso ({ingreso:%d/%m/%Y %H:%M}).")
 
@@ -589,32 +598,60 @@ def _lateralidad(cuenta: Cuenta) -> Punto:
     patron = re.compile(
         r"\b(" + "|".join(r"\s+".join(map(re.escape, r.split())) for r in regiones) + r")s?\b(?:\s+\w+){0,3}?\s+" + PATRON_LADO + r"\b"
     )
-    lados: dict[str, dict[str, list[Folio]]] = {}
+    # (región, lado, folio, texto de la línea) de cada mención de la lesión, imagen o procedimiento
+    menciones = []
     for folio in cuenta.folios:
         for linea in folio.texto_normalizado.splitlines():
-            # Solo menciones de la lesión, la imagen o el procedimiento; no lo normal ni otras zonas.
             if not _contiene(linea, p["palabras_lesion"]) or _contiene(linea, p["palabras_no_lesion"]):
                 continue
             for m in patron.finditer(linea):
-                region = " ".join(m.group(1).split())
-                lado = "bilateral" if m.group(2).startswith("bilateral") else ("DERECHA" if m.group(2).startswith("derech") else "IZQUIERDA")
-                lados.setdefault(region, {}).setdefault(lado, []).append(folio)
-    if not lados:
+                lado = "BILATERAL" if m.group(2).startswith("bilateral") else ("DERECHA" if m.group(2).startswith("derech") else "IZQUIERDA")
+                menciones.append((" ".join(m.group(1).split()), lado, folio, " ".join(linea.split())))
+    if not menciones:
         return Punto(S_PERTINENCIA, "Lateralidad", FALTA, "No se encontraron lesiones o estudios con lateralidad (derecha/izquierda).")
-    conflictos = {r: l for r, l in lados.items() if "DERECHA" in l and "IZQUIERDA" in l and "bilateral" not in l}
-    if conflictos:
-        partes = []
-        for region, l in conflictos.items():
-            der, izq = _lista_folios(cuenta, l["DERECHA"]), _lista_folios(cuenta, l["IZQUIERDA"])
-            partes.append(f"{region.upper()}: DERECHA en {_resumir(der)} / IZQUIERDA en {_resumir(izq)}")
-        minoritarios = [f for l in conflictos.values() for f in min(l["DERECHA"], l["IZQUIERDA"], key=lambda fs: len({(f.archivo, f.numero) for f in fs}))]
-        return Punto(
-            S_PERTINENCIA, "Lateralidad", ERROR,
-            "La misma región aparece con lados distintos: " + " | ".join(partes) + ".",
-            _lista_folios(cuenta, minoritarios),
-        )
-    detalle = "; ".join(f"{r}: {', '.join(l)}" for r, l in lados.items())
-    return Punto(S_PERTINENCIA, "Lateralidad", CORRECTO, f"Lateralidad consistente ({detalle}).")
+
+    regiones_con_ambos = {
+        r for r in {m[0] for m in menciones}
+        if {"DERECHA", "IZQUIERDA"} <= {m[1] for m in menciones if m[0] == r} and "BILATERAL" not in {m[1] for m in menciones if m[0] == r}
+    }
+    if not regiones_con_ambos:
+        detalle = "; ".join(f"{r}: {', '.join(sorted({m[1] for m in menciones if m[0] == r}))}" for r in _unicos(m[0] for m in menciones))
+        return Punto(S_PERTINENCIA, "Lateralidad", CORRECTO, f"Lateralidad consistente ({detalle}).")
+
+    # El lado de referencia es el de los informes de imagen y quirúrgicos; si no hay, el más mencionado.
+    referencia_tipos = _grupo("radiologia") + _grupo("quirurgico")
+    en_referencia = [m for m in menciones if m[2].tipo in referencia_tipos and m[1] != "BILATERAL"]
+    base = en_referencia or [m for m in menciones if m[1] != "BILATERAL"]
+    conteo = {l: sum(m[1] == l for m in base) for l in ("DERECHA", "IZQUIERDA")}
+    if conteo["DERECHA"] == conteo["IZQUIERDA"]:
+        # No hay forma de saber cuál es el lado correcto: se muestran ambos.
+        conflicto = [m for m in menciones if m[0] in regiones_con_ambos]
+        partes = [
+            f"{lado} en {_resumir(_lista_folios(cuenta, [m[2] for m in conflicto if m[1] == lado]))}"
+            for lado in ("DERECHA", "IZQUIERDA")
+        ]
+        return Punto(S_PERTINENCIA, "Lateralidad", ERROR,
+                     f"La misma región aparece con los dos lados ({', '.join(sorted(regiones_con_ambos))}): " + " / ".join(partes) + ".",
+                     _lista_folios(cuenta, [m[2] for m in conflicto]))
+    lado_correcto = max(conteo, key=conteo.get)
+    fuente = (
+        f"informes de imagen y quirúrgicos ({_resumir(_lista_folios(cuenta, [m[2] for m in en_referencia]))})"
+        if en_referencia else "la mayoría de los folios"
+    )
+    contrarias = [m for m in menciones if m[0] in regiones_con_ambos and m[1] not in (lado_correcto, "BILATERAL")]
+    por_tipo: dict[str, list] = {}
+    for m in contrarias:
+        por_tipo.setdefault(m[2].tipo or "Otros", []).append(m)
+    partes = [
+        f"{tipo} ({_resumir(_lista_folios(cuenta, [m[2] for m in ms]))}), p. ej. «{ms[0][3][:90]}»"
+        for tipo, ms in por_tipo.items()
+    ]
+    otro_lado = "DERECHA" if lado_correcto == "IZQUIERDA" else "IZQUIERDA"
+    return Punto(
+        S_PERTINENCIA, "Lateralidad", ERROR,
+        f"La lesión es {lado_correcto} según {fuente}, pero dicen {otro_lado}: " + " | ".join(partes) + ".",
+        _lista_folios(cuenta, [m[2] for m in contrarias]),
+    )
 
 
 PATRON_ESTUDIO = re.compile(r"\b(radiografia|tomografia|resonancia|ecografia)\s+(?:de\s+)?([a-z]+)")
@@ -671,6 +708,109 @@ def _examenes(cuenta: Cuenta) -> list[Punto]:
         puntos.append(Punto(S_PERTINENCIA, "Ayudas diagnósticas justificadas", CORRECTO,
                             f"Con orden o justificación: {', '.join(_unicos(e for e, _ in justificados))}."))
     return puntos
+
+
+LINEA_MATERIAL = re.compile(r"^\s*\S+\s+(?P<descripcion>.+?)\s+(?P<cantidad>\d{1,4})\s+\$")
+CANTIDAD_EN_CIRUGIA = re.compile(r"([^():,;]{5,120}?)\s*(?:cantidad\s*:?\s*|#\s*)(\d{1,3})\b")
+
+
+def _firma_material(descripcion: str) -> tuple[str, ...]:
+    """Medidas del material (3.5 x 14, 9 x 320...): identifican la pieza aunque cambie la redacción."""
+    numeros = re.findall(r"\d+/\d+|\d+(?:[.,]\d+)?", descripcion.replace("(ortopedia)", ""))
+    return tuple(sorted(str(float(n.replace(",", "."))) if "/" not in n else n for n in numeros))
+
+
+def _materiales_cobrados(cuenta: Cuenta) -> list[tuple[str, int, Folio]]:
+    """Líneas de la sección de material quirúrgico de la factura: (descripción, cantidad, folio)."""
+    materiales, en_material = [], False
+    for folio in cuenta.folios_de(_grupo("factura")):
+        for linea in folio.texto_normalizado.splitlines():
+            if "material qx" in linea or "material especial" in linea or "osteosintesis" in linea and "$" not in linea:
+                en_material = True
+                continue
+            if en_material and linea.strip() and len(linea.split()) <= 6 and "$" not in linea and "subtotal" not in linea:
+                en_material = False  # Empieza otra sección (p. ej. LABORATORIO)
+            m = LINEA_MATERIAL.match(linea) if en_material else None
+            if m and "subtotal" not in linea:
+                materiales.append((" ".join(m.group("descripcion").split()), int(m.group("cantidad")), folio))
+    return materiales
+
+
+def _cantidades_cirugia(texto: str) -> dict[tuple[str, ...], int]:
+    cantidades: dict[tuple[str, ...], int] = {}
+    for m in CANTIDAD_EN_CIRUGIA.finditer(texto):
+        firma = _firma_material(m.group(1))
+        if firma:
+            cantidades[firma] = cantidades.get(firma, 0) + int(m.group(2))
+    return cantidades
+
+
+def _material_cantidades(cuenta: Cuenta) -> Punto:
+    nombre = "Material de osteosíntesis: cantidades cobradas vs. informe quirúrgico"
+    cobrados = _materiales_cobrados(cuenta)
+    if not cobrados:
+        return Punto(S_PERTINENCIA, nombre, NO_APLICA, "La factura no tiene una sección de material quirúrgico con cantidades.")
+    quirurgicos = cuenta.folios_de(_grupo("quirurgico"))
+    if not quirurgicos:
+        return Punto(S_PERTINENCIA, nombre, FALTA, "Hay material cobrado pero no se encontró el informe quirúrgico.",
+                     _lista_folios(cuenta, [f for _, _, f in cobrados]))
+    texto = "\n".join(f.texto_normalizado for f in quirurgicos)
+    corte = re.search(r"\n\s*material\s*\n|material autorizado|material adicional", texto)
+    narrativa = _cantidades_cirugia(texto[: corte.start()] if corte else texto)
+    lista = _cantidades_cirugia(texto[corte.start():]) if corte else {}
+
+    problemas, correctos = [], 0
+    for descripcion, cantidad, folio in cobrados:
+        firma = _firma_material(descripcion)
+        en_lista, en_relato = lista.get(firma), narrativa.get(firma)
+        if en_lista is None and en_relato is None:
+            problemas.append(f"«{descripcion}»: se cobran {cantidad} y no aparece en el informe quirúrgico ({cuenta.ubicacion(folio)})")
+        elif en_lista is not None and cantidad > en_lista:
+            relato = f"; el relato de la cirugía menciona {en_relato}" if en_relato is not None else ""
+            problemas.append(f"«{descripcion}»: se cobran {cantidad} y la lista de material del informe registra {en_lista}{relato} ({cuenta.ubicacion(folio)})")
+        elif en_lista is None and cantidad > en_relato:
+            problemas.append(f"«{descripcion}»: se cobran {cantidad} y el informe quirúrgico describe {en_relato} ({cuenta.ubicacion(folio)})")
+        else:
+            correctos += 1
+    folios = _lista_folios(cuenta, [f for _, _, f in cobrados] + quirurgicos)
+    if problemas:
+        return Punto(S_PERTINENCIA, nombre, ERROR, "; ".join(problemas) + f". ({correctos} material(es) más coinciden.)", folios)
+    return Punto(S_PERTINENCIA, nombre, CORRECTO, f"Los {correctos} materiales cobrados coinciden en cantidad con el informe quirúrgico.", folios)
+
+
+LINEA_MEDICAMENTO_SALIDA = re.compile(r"^\s*([a-z][a-z]+).*?\s(\d{1,4})\s+[a-z]+\s*$")
+
+
+def _ambulatorios_cobrados_vs_orden(cuenta: Cuenta) -> Punto:
+    nombre = "Medicamentos ambulatorios cobrados vs. orden de salida"
+    cobrados = [(d, c, f) for _, c, d, f in _lineas_factura(cuenta) if "ambulatorio" in d]
+    if not cobrados:
+        return Punto(S_PERTINENCIA, nombre, NO_APLICA, "La factura no cobra medicamentos ambulatorios.")
+    ordenados: dict[str, int] = {}
+    folios_orden = []
+    for folio in _buscar(cuenta.folios, parametros()["palabras_orden_ambulatoria"]):
+        texto = re.split(r"salida|ambulatori", folio.texto_normalizado, maxsplit=1)[-1]
+        for linea in texto.splitlines():
+            m = LINEA_MEDICAMENTO_SALIDA.match(linea)
+            if m and re.search(r"\b(tableta|capsula|inyectable|solucion|suspension|jarabe|ampolla|sobre)\b", linea):
+                ordenados[m.group(1)] = ordenados.get(m.group(1), 0) + int(m.group(2))
+                folios_orden.append(folio)
+    if not ordenados:
+        return Punto(S_PERTINENCIA, nombre, FALTA, "Se cobran medicamentos ambulatorios pero no se encontró la orden de salida con cantidades.",
+                     _lista_folios(cuenta, [f for _, _, f in cobrados]))
+    problemas = []
+    for descripcion, cantidad, folio in cobrados:
+        medicamento = re.match(r"[a-z]+", descripcion).group(0)
+        orden = ordenados.get(medicamento)
+        if orden is None:
+            problemas.append(f"«{descripcion}»: se cobran {cantidad} y no está en la orden de salida")
+        elif cantidad > orden:
+            problemas.append(f"«{descripcion}»: se cobran {cantidad} y la orden de salida dice {orden}")
+    folios = _lista_folios(cuenta, [f for _, _, f in cobrados] + folios_orden)
+    if problemas:
+        return Punto(S_PERTINENCIA, nombre, ERROR, "; ".join(problemas) + ".", folios)
+    return Punto(S_PERTINENCIA, nombre, CORRECTO,
+                 "Coinciden con la orden de salida: " + ", ".join(f"{d.split(' (')[0]} x{c}" for d, c, _ in cobrados) + ".", folios)
 
 
 def _osteosintesis(cuenta: Cuenta) -> Punto:
@@ -746,7 +886,15 @@ def _orden_ambulatoria(cuenta: Cuenta) -> Punto:
 
 
 def revisar_pertinencia(cuenta: Cuenta) -> list[Punto]:
-    return [_lateralidad(cuenta), *_examenes(cuenta), _osteosintesis(cuenta), _firmas_medicos(cuenta), _orden_ambulatoria(cuenta)]
+    return [
+        _lateralidad(cuenta),
+        *_examenes(cuenta),
+        _osteosintesis(cuenta),
+        _material_cantidades(cuenta),
+        _firmas_medicos(cuenta),
+        _orden_ambulatoria(cuenta),
+        _ambulatorios_cobrados_vs_orden(cuenta),
+    ]
 
 
 def revisar_cuenta(cuenta: Cuenta) -> list[Punto]:
