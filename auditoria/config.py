@@ -31,10 +31,13 @@ TESSDATA_USUARIO = Path(os.getenv("LOCALAPPDATA", str(Path.home()))) / "auditori
 
 
 def cargar_configuracion(archivo_env: Path | None = None) -> Configuracion:
-    """Carga la configuración desde .env y variables de entorno (sin OCR por defecto)."""
+    """Carga la configuración desde .env y variables de entorno.
+
+    Por defecto intenta usar Tesseract: si no está instalado, la app sigue funcionando sin OCR.
+    """
     load_dotenv(archivo_env or RAIZ_PROYECTO / ".env", override=False)
 
-    motor_ocr = os.getenv("OCR_MOTOR", "ninguno").strip().lower() or "ninguno"
+    motor_ocr = os.getenv("OCR_MOTOR", "tesseract").strip().lower() or "tesseract"
     if motor_ocr not in MOTORES_OCR_VALIDOS:
         raise ValueError(f"OCR_MOTOR='{motor_ocr}' no es válido. Opciones: {', '.join(MOTORES_OCR_VALIDOS)}")
 

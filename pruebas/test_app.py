@@ -12,6 +12,16 @@ def test_app_arranca_sin_archivos():
     assert app.title[0].value == "Auditoría de cuenta SOAT"
 
 
+def test_aviso_de_version_web_solo_en_la_nube(monkeypatch):
+    monkeypatch.delenv("AVISO_WEB", raising=False)
+    app = AppTest.from_file(str(RAIZ_PROYECTO / "app.py"), default_timeout=60).run()
+    assert not any("Versión web de prueba" in w.value for w in app.warning)
+
+    monkeypatch.setenv("AVISO_WEB", "1")
+    app = AppTest.from_file(str(RAIZ_PROYECTO / "app.py"), default_timeout=60).run()
+    assert any("Versión web de prueba" in w.value for w in app.warning)
+
+
 def test_app_audita_y_muestra_texto_para_copiar(monkeypatch):
     from auditoria.config import cargar_configuracion
     from auditoria.revision import auditar

@@ -3,7 +3,7 @@
 Ejecutar con:  .\\.venv\\Scripts\\python.exe -m streamlit run app.py
 """
 
-import re
+import os
 
 import streamlit as st
 
@@ -77,6 +77,14 @@ st.caption("Sube la cuenta en PDF y el programa te dice qué errores tiene, foli
 
 configuracion = cargar_configuracion()
 ocr = estado_ocr(configuracion)
+
+if os.getenv("AVISO_WEB"):
+    # Versión publicada en internet (Streamlit Community Cloud): los archivos pasan por servidores externos.
+    st.warning(
+        "**Versión web de prueba.** Los PDF se procesan en servidores externos: use solo cuentas "
+        "**ficticias o anonimizadas**, salvo autorización de la organización. Nada se guarda después de cerrar la página.",
+        icon="🌐",
+    )
 
 with st.container(border=True):
     archivos = st.file_uploader("📎 PDF de la cuenta (uno o varios)", type=["pdf"], accept_multiple_files=True)
