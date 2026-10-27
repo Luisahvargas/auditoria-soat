@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from auditoria.revision.cuenta import Cuenta
-from auditoria.revision.puntos import CORRECTO, ERROR, FALTA, NO_APLICA, REVISAR, Punto
+from auditoria.revision.puntos import CORRECTO, ERROR, FALTA, NO_APLICA, REVISAR, Punto, _lineas_factura, parametros
 
 TITULOS = {
     ERROR: "ERRORES ENCONTRADOS",
@@ -17,6 +17,53 @@ TITULOS = {
 def _linea(punto: Punto) -> str:
     folios = f" [{', '.join(punto.folios)}]" if punto.folios and punto.resultado != CORRECTO else ""
     return f"- {punto.nombre}: {punto.detalle}{folios}"
+
+
+def _rangos(numeros: list[int]) -> str:
+    """[1,2,3,7] -> '1-3, 7'"""
+    partes, inicio = [], None
+    for i, n in enumerate(numeros):
+        if inicio is None:
+            inicio = n
+        if i + 1 == len(numeros) or numeros[i + 1] != n + 1:
+            partes.append(str(inicio) if inicio == n else f"{inicio}-{n}")
+            inicio = None
+    return ", ".join(partes)
+
+
+def lectura_de_la_cuenta(cuenta: Cuenta) -> list[str]:
+    """Qué documentos se reconocieron, cuáles no y qué folios no se pudieron leer.
+
+    Sirve para distinguir un "Falta" real de un documento que la app no supo reconocer.
+    """
+    lineas = []
+    archivos = sorted({f.archivo for f in cuenta.folios})
+    tipos_presentes = {f.tipo for f in cuenta.folios if f.tipo}
+    for archivo in archivos:
+        del_archivo = [f for f in cuenta.folios if f.archivo == archivo]
+        prefijo = f"{archivo}: " if len(archivos) > 1 else ""
+        por_tipo: dict[str, list[int]] = {}
+        for f in del_archivo:
+            por_tipo.setdefault(f.tipo or "Sin texto (escaneado sin leer)", []).append(f.numero)
+        reconocidos = "; ".join(f"{t} ({_rangos(ns)})" for t, ns in por_tipo.items())
+        lineas.append(f"- {prefijo}Documentos reconocidos: {reconocidos}.")
+
+    for esperado in parametros().get("documentos_esperados", []):
+        opciones = esperado.split("|")
+        if not tipos_presentes & set(opciones):
+            lineas.append(
+                f"- No se reconoció {' / '.join(opciones)}. Si sí está en la cuenta, indique el folio para ajustar la lectura; "
+                "los puntos que dependen de este documento salen como «no se encontró»."
+            )
+    otros = [f for f in cuenta.folios if f.tipo == "Otros"]
+    if otros:
+        lineas.append(f"- Folios sin tipo reconocido (no se usaron en las comparaciones por tipo): {', '.join(cuenta.ubicacion(f) for f in otros)}.")
+    if "Factura" in tipos_presentes and not _lineas_factura(cuenta):
+        lineas.append("- La factura se reconoció, pero no se pudieron leer sus líneas de cobro (cantidades): los chequeos de cobro no se aplicaron.")
+    ocr = [f for f in cuenta.folios if f.metodo == "OCR"]
+    if ocr:
+        lineas.append(f"- Leídos con OCR (escaneados, la lectura puede tener errores): {', '.join(cuenta.ubicacion(f) for f in ocr)}.")
+    return lineas
 
 
 def generar_texto(cuenta: Cuenta, puntos: list[Punto], incluir_correctos: bool = True) -> str:
@@ -49,4 +96,6 @@ def generar_texto(cuenta: Cuenta, puntos: list[Punto], incluir_correctos: bool =
             continue
         lineas += ["", TITULOS[resultado]]
         lineas += [_linea(p) for p in del_resultado]
+
+    lineas += ["", "LECTURA DE LA CUENTA"] + lectura_de_la_cuenta(cuenta)
     return "\n".join(lineas) + "\n"

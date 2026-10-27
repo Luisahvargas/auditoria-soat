@@ -41,11 +41,14 @@ Cada punto sale como **Error**, **Falta** (no se encontró el documento o el dat
 
 ## Límites
 
-- **Folios escaneados:** sin OCR no se pueden leer, y el programa lo avisa. Para leerlos instala Tesseract (gratuito) con el idioma **Spanish**:
+- **Folios escaneados:** se leen con OCR (Tesseract, gratuito y local). Lo leído por OCR puede tener errores (sobre todo la letra a mano), por eso las diferencias que vienen solo de esos folios salen como "Revisar" y no como "Error". Instalación en un equipo nuevo:
   ```powershell
-  winget install --id UB-Mannheim.TesseractOCR
+  winget install --id UB-Mannheim.TesseractOCR -e
+  New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\auditoria_soat\tessdata"
+  Invoke-WebRequest "https://github.com/tesseract-ocr/tessdata_best/raw/main/spa.traineddata" -OutFile "$env:LOCALAPPDATA\auditoria_soat\tessdata\spa.traineddata"
   ```
   Luego pon `OCR_MOTOR=tesseract` en `.env`.
+- **Lectura de la cuenta:** al final del texto se indica qué documentos se reconocieron, cuáles no y qué folios no se pudieron leer. Si un documento que sí está sale como "no se encontró", indica el folio para ajustar la lectura a ese formato.
 - **Firmas:** las firmas manuscritas no se leen como texto, por eso esos puntos salen como "Revisar" con el folio.
 - **RUNT:** no se consulta en línea. Se compara contra la consulta RUNT que venga dentro de la cuenta.
 

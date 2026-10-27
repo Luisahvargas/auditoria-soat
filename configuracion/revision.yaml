@@ -22,6 +22,16 @@ grupos:
   urgencias: [Atención inicial de urgencias, SIRAS]
   con_firma_medica: [Informes radiológicos, Laboratorio y ayudas diagnósticas, Descripción quirúrgica, Epicrisis, Historia clínica]
 
+# Documentos que toda cuenta debería traer. Si no se reconocen, el informe lo avisa
+# (puede ser que falten o que su formato sea distinto y haya que ajustar la lectura).
+# Una línea con varios tipos separados por "|" se cumple con cualquiera de ellos.
+documentos_esperados:
+  - FURIPS
+  - Factura
+  - Hoja de admisión|Historia clínica|Atención inicial de urgencias
+  - Epicrisis
+  - Póliza SOAT y documentos del vehículo
+
 # Código de "condición del accidentado" en algunos formatos (pendiente de validación con el formato oficial).
 codigos_calidad:
   "1": conductor

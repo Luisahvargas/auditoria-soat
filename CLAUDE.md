@@ -105,10 +105,18 @@ Las fases 0 a 10 anteriores (base de datos, usuarios, revisión humana, IA, expo
 
 ## 8. Estado del proyecto
 
-- [x] Versión simplificada (2026-10-25): una pantalla, 28 puntos de la lista del auditor, texto para copiar. 39 pruebas pasan.
+- [x] Versión simplificada (2026-10-25): una pantalla, puntos de la lista del auditor, texto para copiar.
+- [x] Ajuste con la primera cuenta real (2026-10-26, IPS Medicentro Familiar, aseguradora Mundial): lectores de FURIPS, SIRAS, SOAT en tabla y RUNT; cantidades de material y ambulatorios; sección "Lectura de la cuenta". 53 pruebas pasan.
+- [x] OCR activo (2026-10-26): Tesseract 5.4 en `C:\Program Files\Tesseract-OCR`, idioma español en `%LOCALAPPDATA%\auditoria_soat\tessdata`. Lo leído solo por OCR nunca produce "Error", solo "Revisar".
+
+### Cómo mejorar con cada cuenta nueva (la usuaria subirá más facturas de prueba)
+
+1. Correr la cuenta y mirar la sección "LECTURA DE LA CUENTA": documentos no reconocidos y folios "Otros".
+2. Ajustar primero los YAML (`tipos_documento.yaml` títulos, `ficha.yaml` patrones, `revision.yaml`); solo programar un lector nuevo si es un formulario con tablas.
+3. Distinguir siempre lo general (FURIPS, SIRAS, RUNT son formatos nacionales) de lo propio de una IPS o aseguradora.
+4. Nunca guardar texto ni datos de cuentas reales en el proyecto: las pruebas imitan el formato con datos inventados.
 
 ### Pendientes
 
-- Probar con cuentas reales y ajustar `configuracion/ficha.yaml` y `tipos_documento.yaml` a sus formatos (los patrones actuales se hicieron con cuentas ficticias).
-- Si las cuentas llegan escaneadas, instalar Tesseract con español (gratuito) y poner `OCR_MOTOR=tesseract` en `.env`.
+- Probar con cuentas de otras IPS y aseguradoras (formatos de factura, póliza y títulos distintos).
 - Lectura de XML de factura electrónica y RIPS: solo si la usuaria la pide, y con ejemplos reales anonimizados (no inventar su estructura).

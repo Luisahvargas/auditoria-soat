@@ -23,6 +23,11 @@ class Configuracion:
 
     motor_ocr: str = "ninguno"
     ruta_tesseract: str = ""
+    ruta_tessdata: str = ""  # Carpeta con spa.traineddata (si no está en la instalación de Tesseract)
+
+
+# Carpeta por defecto del idioma español descargado para Tesseract (no requiere administrador).
+TESSDATA_USUARIO = Path(os.getenv("LOCALAPPDATA", str(Path.home()))) / "auditoria_soat" / "tessdata"
 
 
 def cargar_configuracion(archivo_env: Path | None = None) -> Configuracion:
@@ -33,4 +38,12 @@ def cargar_configuracion(archivo_env: Path | None = None) -> Configuracion:
     if motor_ocr not in MOTORES_OCR_VALIDOS:
         raise ValueError(f"OCR_MOTOR='{motor_ocr}' no es válido. Opciones: {', '.join(MOTORES_OCR_VALIDOS)}")
 
-    return Configuracion(motor_ocr=motor_ocr, ruta_tesseract=os.getenv("RUTA_TESSERACT", "").strip())
+    ruta_tessdata = os.getenv("RUTA_TESSDATA", "").strip()
+    if not ruta_tessdata and (TESSDATA_USUARIO / "spa.traineddata").exists():
+        ruta_tessdata = str(TESSDATA_USUARIO)
+
+    return Configuracion(
+        motor_ocr=motor_ocr,
+        ruta_tesseract=os.getenv("RUTA_TESSERACT", "").strip(),
+        ruta_tessdata=ruta_tessdata,
+    )

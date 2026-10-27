@@ -107,6 +107,26 @@ def test_ocr_simulado_lee_folios_escaneados(monkeypatch):
     assert [f.metodo for f in cuenta.folios] == ["Texto PDF", "OCR", "OCR"]
 
 
+def test_diferencia_que_solo_viene_del_ocr_queda_para_revisar(monkeypatch):
+    """Un folio escaneado mal leído por OCR no debe producir un error, sino 'Revisar'."""
+    monkeypatch.setattr(ocr, "estado_ocr", lambda _c: ocr.EstadoOCR(True, "simulado", "tesseract"))
+    monkeypatch.setattr(ocr, "ocr_imagen", lambda _e, _png: "RECUENTO DE MATERIAL\nPaciente: Paciente Ficticio Uno\nEdad: 2 anos\nSexo: F")
+    paginas = generadores.paginas_cuenta_ficticia() + [generadores.SOLO_IMAGEN]
+    _, puntos, _ = auditar([("cuenta.pdf", generadores.pdf_con_paginas(paginas))], replace(CONFIG, motor_ocr="tesseract"))
+    resultados = {p.nombre: p for p in puntos}
+    for nombre in ("Edad (calculada a la fecha del evento)", "Sexo en todos los folios"):
+        assert resultados[nombre].resultado == REVISAR, (nombre, resultados[nombre].detalle)
+        assert "OCR" in resultados[nombre].detalle
+
+
+def test_lectura_de_la_cuenta_avisa_documentos_no_reconocidos():
+    _, _, texto = auditar([("x.pdf", generadores.pdf_con_paginas(["HOJA DE ADMISION\nPaciente: Paciente Ficticio Uno"]))], CONFIG)
+    lectura = texto.split("LECTURA DE LA CUENTA")[1]
+    assert "Documentos reconocidos: Hoja de admisión (1)" in lectura
+    assert "No se reconoció FURIPS" in lectura
+    assert "No se reconoció Factura" in lectura
+
+
 def test_varios_archivos_indican_archivo_y_folio():
     paginas = generadores.paginas_cuenta_ficticia(factura="FE-2002")
     archivos = [("furips.pdf", generadores.pdf_con_paginas(paginas[:1])), ("soportes.pdf", generadores.pdf_con_paginas(paginas[1:]))]

@@ -25,6 +25,13 @@ CORRECTO = "Correcto"
 NO_APLICA = "No aplica"
 ORDEN_RESULTADOS = (ERROR, FALTA, REVISAR, CORRECTO, NO_APLICA)
 MAXIMO_FOLIOS_EN_TEXTO = 10
+NOTA_OCR = " La diferencia viene de un folio escaneado leído por OCR (puede ser un error de lectura): verifíquelo en el documento."
+
+
+def _solo_ocr(datos) -> bool:
+    """True si todos los datos vienen de folios escaneados leídos por OCR."""
+    datos = list(datos)
+    return bool(datos) and all(d.folio.metodo == "OCR" for d in datos)
 
 
 @dataclass
@@ -151,17 +158,23 @@ def comparar(
             folios,
         )
 
-    conjuntos = {g: {clave(d) for d in ds} for g, ds in presentes.items()}
-    if coincide_si_comparten:
-        iguales = bool(set.intersection(*conjuntos.values()))
-    else:
-        iguales = len(set.union(*conjuntos.values())) == 1
+    def coinciden(grupos_datos: dict) -> bool:
+        conjuntos = [{clave(d) for d in ds} for ds in grupos_datos.values() if ds]
+        if len(conjuntos) < 2:
+            return True
+        return bool(set.intersection(*conjuntos)) if coincide_si_comparten else len(set.union(*conjuntos)) == 1
+
     nota = f" No se encontró en: {', '.join(faltantes)}." if faltantes else ""
-    if iguales:
-        valor = next(iter(set.intersection(*conjuntos.values()))) if coincide_si_comparten else None
+    if coinciden(presentes):
+        conjuntos = [{clave(d) for d in ds} for ds in presentes.values()]
+        valor = next(iter(set.intersection(*conjuntos))) if coincide_si_comparten else None
         mostrar = [d for d in todos if valor is None or clave(d) == valor]
         return Punto(seccion, nombre, CORRECTO, f"Coincide: {_describir(cuenta, mostrar, clave)}.{nota}", folios)
     detalle = " | ".join(f"{NOMBRES_GRUPO[g].upper()}: {_describir(cuenta, ds, clave)}" for g, ds in presentes.items())
+    # Si sin los datos leídos por OCR todo coincide, la diferencia puede ser un error de lectura.
+    sin_ocr = {g: [d for d in ds if d.folio.metodo != "OCR"] for g, ds in presentes.items()}
+    if coinciden(sin_ocr) and any(d.folio.metodo == "OCR" for d in todos):
+        return Punto(seccion, nombre, REVISAR, f"No coincide. {detalle}.{nota}{NOTA_OCR}", folios)
     return Punto(seccion, nombre, ERROR, f"No coincide. {detalle}.{nota}", folios)
 
 
@@ -283,9 +296,9 @@ def _edad(cuenta: Cuenta) -> Punto:
     distintas = [d for d in edades if d.normalizado != str(esperada)]
     if distintas:
         return Punto(
-            S_FURIPS, nombre, ERROR,
+            S_FURIPS, nombre, REVISAR if _solo_ocr(distintas) else ERROR,
             f"Edad calculada: {esperada} años (nacimiento {nacimiento:%d/%m/%Y}, evento {evento:%d/%m/%Y}). "
-            f"Folios con otra edad: {_describir(cuenta, distintas)}.",
+            f"Folios con otra edad: {_describir(cuenta, distintas)}." + (NOTA_OCR if _solo_ocr(distintas) else ""),
             _lista_folios(cuenta, [d.folio for d in distintas]),
         )
     return Punto(S_FURIPS, nombre, CORRECTO, f"{esperada} años en todos los folios donde aparece.", folios)
@@ -566,7 +579,9 @@ def revisar_paciente(cuenta: Cuenta) -> list[Punto]:
             detalle.append(f"otras identificaciones: {_describir(cuenta, ids_distintos)}")
         if nombres_raros:
             detalle.append(f"otros nombres: {_describir(cuenta, nombres_raros)}")
-        puntos.append(Punto(S_PACIENTE, nombre_punto, ERROR, "; ".join(detalle) + ".", folios))
+        solo_ocr = _solo_ocr(ids_distintos + nombres_raros)
+        puntos.append(Punto(S_PACIENTE, nombre_punto, REVISAR if solo_ocr else ERROR,
+                            "; ".join(detalle) + "." + (NOTA_OCR if solo_ocr else ""), folios))
     else:
         total = len({d.folio.numero for d in ids + nombres})
         puntos.append(Punto(S_PACIENTE, nombre_punto, CORRECTO, f"{base} identificación {id_principal} en los {total} folios donde aparece."))
@@ -576,7 +591,10 @@ def revisar_paciente(cuenta: Cuenta) -> list[Punto]:
     if not sexos:
         puntos.append(Punto(S_PACIENTE, "Sexo en todos los folios", FALTA, "No se encontró el sexo del paciente."))
     elif len(valores) > 1:
-        puntos.append(Punto(S_PACIENTE, "Sexo en todos los folios", ERROR, f"No coincide: {_describir(cuenta, sexos)}.",
+        sin_ocr = {SEXO.get(normalizar(d.valor), d.valor) for d in sexos if d.folio.metodo != "OCR"}
+        solo_ocr = len(sin_ocr) <= 1
+        puntos.append(Punto(S_PACIENTE, "Sexo en todos los folios", REVISAR if solo_ocr else ERROR,
+                            f"No coincide: {_describir(cuenta, sexos)}." + (NOTA_OCR if solo_ocr else ""),
                             _lista_folios(cuenta, [d.folio for d in sexos])))
     else:
         texto = {"M": "Masculino", "F": "Femenino"}.get(next(iter(valores)), next(iter(valores)))
@@ -647,9 +665,11 @@ def _lateralidad(cuenta: Cuenta) -> Punto:
         for tipo, ms in por_tipo.items()
     ]
     otro_lado = "DERECHA" if lado_correcto == "IZQUIERDA" else "IZQUIERDA"
+    solo_ocr = all(m[2].metodo == "OCR" for m in contrarias)
     return Punto(
-        S_PERTINENCIA, "Lateralidad", ERROR,
-        f"La lesión es {lado_correcto} según {fuente}, pero dicen {otro_lado}: " + " | ".join(partes) + ".",
+        S_PERTINENCIA, "Lateralidad", REVISAR if solo_ocr else ERROR,
+        f"La lesión es {lado_correcto} según {fuente}, pero dicen {otro_lado}: " + " | ".join(partes) + "."
+        + (NOTA_OCR if solo_ocr else ""),
         _lista_folios(cuenta, [m[2] for m in contrarias]),
     )
 

@@ -6,6 +6,7 @@ Ejecutar con:  .\\.venv\\Scripts\\python.exe -m streamlit run app.py
 import streamlit as st
 
 from auditoria.config import cargar_configuracion
+from auditoria.documentos.ocr import estado_ocr
 from auditoria.revision import auditar
 from auditoria.revision.puntos import CORRECTO, ERROR, FALTA, NO_APLICA, ORDEN_RESULTADOS, REVISAR
 
@@ -15,10 +16,15 @@ st.set_page_config(page_title="Auditoría SOAT", page_icon="🩺", layout="wide"
 st.title("Auditoría de cuenta SOAT")
 st.caption("Sube la cuenta en PDF y el programa te dice qué errores tiene. Los documentos no se guardan ni se envían a ningún lado.")
 
+configuracion = cargar_configuracion()
+ocr = estado_ocr(configuracion)
+st.caption(("🔤 " if ocr.disponible else "⚠️ ") + ocr.mensaje)
+
 archivos = st.file_uploader("PDF de la cuenta (uno o varios)", type=["pdf"], accept_multiple_files=True)
 if archivos and st.button("Auditar", type="primary"):
-    with st.spinner("Revisando folios…"):
-        st.session_state["resultado"] = auditar([(a.name, a.getvalue()) for a in archivos], cargar_configuracion())
+    aviso = " Los folios escaneados se leen con OCR: puede tardar unos segundos por folio." if ocr.disponible else ""
+    with st.spinner("Revisando folios…" + aviso):
+        st.session_state["resultado"] = auditar([(a.name, a.getvalue()) for a in archivos], configuracion)
 
 if "resultado" not in st.session_state:
     st.stop()
