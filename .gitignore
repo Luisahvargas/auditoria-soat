@@ -25,3 +25,7 @@ desktop.ini
 
 # --- Streamlit ---
 .streamlit/secrets.toml
+
+# Paquetes de instalacion generados
+dist/
+version.txt

@@ -7,7 +7,7 @@ import re
 
 import streamlit as st
 
-from auditoria.config import cargar_configuracion
+from auditoria.config import RAIZ_PROYECTO, cargar_configuracion
 from auditoria.documentos.ocr import estado_ocr
 from auditoria.revision import auditar
 from auditoria.revision.informe import lectura_de_la_cuenta
@@ -70,8 +70,10 @@ st.markdown(
 )
 
 st.title("Auditoría de cuenta SOAT")
+archivo_version = RAIZ_PROYECTO / "version.txt"
+version = archivo_version.read_text(encoding="ascii").strip() if archivo_version.exists() else "desarrollo"
 st.caption("Sube la cuenta en PDF y el programa te dice qué errores tiene, folio por folio. "
-           "Los documentos no se guardan ni se envían a ningún lado.")
+           f"Los documentos no se guardan ni se envían a ningún lado. · Versión {version}")
 
 configuracion = cargar_configuracion()
 ocr = estado_ocr(configuracion)

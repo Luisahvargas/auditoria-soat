@@ -1,0 +1,35 @@
+AUDITORÍA DE CUENTAS SOAT — INSTRUCCIONES
+==========================================
+
+La aplicación revisa la cuenta en PDF y muestra sus errores, folio por folio.
+Funciona en su computador: las cuentas NO se envían a internet.
+
+INSTALACIÓN (una sola vez, con internet)
+----------------------------------------
+1. Descomprima este ZIP en:  C:\AuditoriaSOAT
+   (clic derecho sobre el ZIP > "Extraer todo..." > escriba C:\AuditoriaSOAT)
+2. Abra la carpeta C:\AuditoriaSOAT y haga doble clic en:  instalar.bat
+   - Si Windows muestra "Windows protegió su PC": clic en "Más información" > "Ejecutar de todas formas".
+   - Si pide permiso de administrador (para el lector de documentos escaneados): clic en "Sí".
+   - Tarda entre 5 y 15 minutos. Al final dice "LISTO".
+3. En el escritorio aparece el icono  "Auditoria SOAT".
+
+USO
+---
+1. Doble clic en el icono "Auditoria SOAT". Se abre el navegador.
+   Se abre también una ventana negra: NO la cierre mientras use la aplicación.
+2. Suba el PDF de la cuenta y pulse "Auditar cuenta".
+3. Revise las pestañas (Errores, No encontrado, Revisar a mano...).
+   En "Texto para copiar" está el resultado listo para pegar.
+4. Para salir: cierre la ventana negra.
+
+ACTUALIZAR A UNA VERSIÓN NUEVA
+------------------------------
+1. Descomprima el ZIP nuevo en la MISMA carpeta C:\AuditoriaSOAT
+   (cuando pregunte, elija "Reemplazar los archivos").
+2. Doble clic en instalar.bat (es más rápido que la primera vez).
+La versión instalada se ve debajo del título de la aplicación.
+
+SI ALGO FALLA
+-------------
+Tome una foto de la ventana con el error y envíela a quien le compartió la aplicación.
